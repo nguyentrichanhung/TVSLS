@@ -1,0 +1,17 @@
+{
+    "Device": [{
+        "url": "rtsp://root:root@222.235.247.91/cam0_0",
+        "location": {
+            "lat": "",
+            "long": ""
+        },
+        "region": "kr",
+        "type": "ptz",
+        "group" : ""
+    }],
+    "MQTT" : {
+        "host" : "localhost",
+        "port" : 8550,
+        "broker" : ""
+    }
+}
