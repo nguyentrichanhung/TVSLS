@@ -68,6 +68,28 @@ class LisencePlate:
         self.recog(frame,show_img,current_frame)
         return self
 
+    def lp_image(self,frame):
+        lp_img = None
+        img = letterbox(frame, self.imgsz, stride=self.stride)[0]
+        img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img = np.ascontiguousarray(img)
+        img = torch.from_numpy(img).to(self.device)
+        img = img.half() if self.half else img.float()  # uint8 to fp16/32
+        img /= 255.0  # 0 - 255 to 0.0 - 1.0
+        if img.ndimension() == 3:
+            img = img.unsqueeze(0)
+        pred = self.model(img, augment=True)[0]
+        pred = non_max_suppression(pred, 0.3, 0.55, classes=[0], agnostic=True)
+        
+        for i, det in enumerate(pred):
+            if len(det):
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], frame.shape).round()
+                for *xyxy, conf, cls in reversed(det):
+                    ci = frame[int(xyxy[1]):int(xyxy[3]),int(xyxy[0]):int(xyxy[2])]
+                    ci = cv2.resize(ci, (416, 416), interpolation=cv2.INTER_CUBIC)
+                    lp_img = ci.copy()
+        return lp_img
+
     def recog_lpr(self,frame):
         lp_img = None
         img = letterbox(frame, self.imgsz, stride=self.stride)[0]
@@ -85,7 +107,6 @@ class LisencePlate:
         for i, det in enumerate(pred):
             if len(det):
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], frame.shape).round()
-                area_boxs = []
                 for *xyxy, conf, cls in reversed(det):
                     ci = frame[int(xyxy[1]):int(xyxy[3]),int(xyxy[0]):int(xyxy[2])]
                     ci = cv2.resize(ci, (416, 416), interpolation=cv2.INTER_CUBIC)
@@ -178,87 +199,6 @@ class LisencePlate:
         self.current_frame = cframe
         self.show_image = show_img
 
-    def detect(self,frame):
-        cframe = frame.copy()
-        img = letterbox(frame, self.imgsz, stride=self.stride)[0]
-        img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
-        img = np.ascontiguousarray(img)
-        img = torch.from_numpy(img).to(self.device)
-        img = img.half() if self.half else img.float()  # uint8 to fp16/32
-        img /= 255.0  # 0 - 255 to 0.0 - 1.0
-        if img.ndimension() == 3:
-            img = img.unsqueeze(0)
-
-        pred = self.model(img, augment=True)[0]
-        pred = non_max_suppression(pred, 0.3, 0.55, classes=None, agnostic=True)
-        
-        for i, det in enumerate(pred):
-            if len(det):
-                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], frame.shape).round()
-                area_boxs = []
-                for *xyxy, conf, cls in reversed(det):
-                    if self.names[int(cls)]  != 'lp':
-                        # print(2)
-                        # plot_one_box(xyxy, cframe, label=None, color=(10, 255, 0), line_thickness=3)
-                        continue
-                    
-                    h = xyxy[3].item() - xyxy[1].item()
-                    w = xyxy[2].item() - xyxy[0].item()
-                    ci = frame[int(xyxy[1]):int(xyxy[3]),int(xyxy[0]):int(xyxy[2])]
-                    ci = cv2.resize(ci, (416, 416), interpolation=cv2.INTER_CUBIC)
-                    nci = letterbox(ci,self.imgsz,self.stride)[0]
-
-                    nci = nci[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
-                    nci = np.ascontiguousarray(nci)
-                    
-                    nci = torch.from_numpy(nci).to(self.device)
-                    nci = nci.half() if self.half else nci.float()  # uint8 to fp16/32
-                    nci /= 255.0  # 0 - 255 to 0.0 - 1.0
-                    if nci.ndimension() == 3:
-                        nci = nci.unsqueeze(0)
-
-                    
-                    pred_dg = self.model(nci, augment=True)[0]
-                    pred_dg = non_max_suppression(pred_dg, 0.35, 0.45, classes=None, agnostic=True)
-                    final_str = ''
-                    for j, det_dg in enumerate(pred_dg):
-                        if len(det_dg):
-                            bboxs = []
-                            lpboxs = []
-                            
-                            det_dg[:, :4] = scale_coords(nci.shape[2:], det_dg[:, :4], ci.shape).round()
-                            for *box, conf, cls1 in reversed(det_dg):
-                                if self.names[int(cls1)] == 'lp':
-                                    continue
-                                dw = box[2].item() - box[0].item()
-                                dh = box[3].item() - box[1].item()
-                                lpboxs.append( [ int(cls1),(box[0].item()+dw/2)/ci.shape[1],(box[1].item()+dh/2)/ci.shape[0],dw/ci.shape[1],dh/ci.shape[0] ] )
-                                bboxs.append([box[0],box[1],box[2],box[3],self.names[int(cls1)]])
-                            if len(bboxs):
-                                bboxs.sort(key=lambda x:x[1])
-                                l1 = [x for x in bboxs if x[1]<bboxs[0][3]]
-                                l2 = [x for x in bboxs if x[1]>bboxs[0][3]]
-                                l1.sort(key=lambda x:x[0])
-                                l2.sort(key=lambda x:x[0])
-                                if len(l2):
-                                    final_str = "".join([x[4] for x in l1]) + "\n" + "".join([x[4] for x in l2])
-                                else:
-                                    final_str = "".join([x[4] for x in l1])
-                    if len(final_str) > 2:
-                        plot_one_box(xyxy, cframe, label=self.names[int(cls)], color=self.colors[int(cls)], line_thickness=3)
-                        area_boxs.append( [ int(cls),(xyxy[0].item()+w/2)/frame.shape[1],(xyxy[1].item()+h/2)/frame.shape[0],w/frame.shape[1],h/frame.shape[0] ] )
-                if len(area_boxs):
-                    if self.count < 1000:
-                        cv2.imwrite("lp_res/11111110{}".format(self.count)+".jpg",cframe)
-                    if self.save_img:
-                        cv2.imwrite("/hdd_ext2/new_data/11111110{}".format(self.count)+".jpg",frame)
-                        with open("/hdd_ext2/new_data/11111110{}".format(self.count)+".txt", 'w') as f:
-                            for box in area_boxs:
-                                f.write( str(box[0])+ " " + " ".join([str(a) for a in box[1:]])+ "\n")
-                        f.close()
-                    self.count += 1
-
-        self.current_frame = cframe
 
     def stop(self):
 	    # Indicate that the camera and thread should be stopped

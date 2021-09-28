@@ -112,7 +112,7 @@ class Ensemble(nn.ModuleList):
 
 def attempt_load(weights, map_location=None):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
-    model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights)  # default
+    model = torch.hub.load('./src/yolov5', 'custom', path=weights, source='local')  # default
 
     model = model.autoshape()
     return model  # return ensemble

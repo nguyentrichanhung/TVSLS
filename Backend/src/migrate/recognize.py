@@ -15,10 +15,9 @@ class Recognize(db.Model):
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
-    def __init__(self,tracking_id,lisence_pate,crop_image):
+    def __init__(self,tracking_id,crop_image):
         self.id = generate_random(24)
         self.tracking_id = tracking_id
-        self.lisence_pate = lisence_pate
         self.crop_image = crop_image
 
     def __repr__(self):

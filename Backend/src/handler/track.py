@@ -20,7 +20,7 @@ def create_or_update(data,log):
             tracking.updated_time = datetime.now()
             db.session.commit()
             return tracking
-        tracking = Track(data['video_id'],data['vehicle_id'],data['tracking_number']
+        tracking = Track(data['video_id'],data['tracking_number']
                             ,data['start_time'],data['end_time'])
         tracking.add(log)
         return tracking
