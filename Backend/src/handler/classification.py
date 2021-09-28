@@ -5,9 +5,9 @@ from src.service.response import *
 from src.const import *
 
 
-def get_classify_by_vehicle_id(vehicle_id,log):
+def get_classify_by_track_id(tracking_id,log):
     try:
-        data = db.session.query(Classification).filter(Classification.vehicle_id == vehicle_id).first()
+        data = db.session.query(Classification).filter(Classification.tracking_id == tracking_id).first()
         db.session.close()
         log.info("data: {}".format(data))
         if data:

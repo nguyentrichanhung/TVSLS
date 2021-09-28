@@ -20,6 +20,7 @@ log.addHandler(handler)
 from flask import  request,render_template,Response , send_file, make_response,send_from_directory
 from flask_api import status
 sys.path.append('/usr/src/Backend')
+# sys.path.append('/home/goback-research/LPR/TVSLS/Backend')
 print(sys.path)
 from src import app
 from src.service.response import *
@@ -51,19 +52,6 @@ def stream():
 def video(video_name):
     return render_template('video.html',vid_name=video_name)
 
-@app.route('/search',methods=["GET"])
-def search_region():
-    log.info('Starting Process....')
-    if request.method == "GET":
-        region = request.args.get('r')
-        if region is None:
-            return ApiResponse(message='Invalid region'), status.HTTP_400_BAD_REQUEST
-        res = search_by_region(region,log)
-        if res.code is not CODE_DONE:
-            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
-        if res.data is None :
-            return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
-        return ApiResponse(message=res.message,data=res.data,success= True), status.HTTP_200_OK
 
 @app.route('/search', methods=["POST"])
 def search_in_range():
@@ -308,7 +296,7 @@ if __name__ == '__main__':
     devices = data['Device']
     
     for device in devices:
-        log.info("passss hereee1")
+        # log.info("passss hereee1")
         d = Device(device['type'],device['group'],device['location'],device['region'],device['url'])
         d.add(log)
         thread = Thread(target=gen_frame,args=(d,model,log))

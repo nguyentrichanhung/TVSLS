@@ -7,7 +7,6 @@ class Vehicle(db.Model):
     __tablename__ = 'Vehicles'
 
     id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
-    device_id = db.Column(db.String(24),db.ForeignKey('Devices.id',ondelete='cascade'),nullable = False)
     license_plate = db.Column(db.String(30),nullable=False,unique = True)
     type = db.Column(db.String(100), nullable= False,unique = False)
     status = db.Column(db.String(100),nullable = False)
@@ -16,10 +15,9 @@ class Vehicle(db.Model):
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
-    def __init__(self,device_id,license_plate,type,status,violation_type):
+    def __init__(self,license_plate,type,status,violation_type):
         self.id = generate_random(24)
         self.license_plate = license_plate
-        self.device_id = device_id
         self.type = type
         self.status = status
         self.violation_type = violation_type
@@ -44,10 +42,9 @@ class Vehicle(db.Model):
             db.session.close()
         
 
-    def update(self,vehicle_id,device_id,license_plate,type,status,violation_type,log):
+    def update(self,vehicle_id,license_plate,type,status,violation_type,log):
         try:
             vehicle = Vehicle.query.filter_by(Vehicle.id ==vehicle_id).first()
-            vehicle.device_id = device_id
             vehicle.license_plate = license_plate
             vehicle.type = type
             vehicle.status = status

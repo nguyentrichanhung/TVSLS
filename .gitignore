@@ -147,3 +147,7 @@ build/
 *.avi
 *.so
 *.txt
+
+#Storage file
+*.jpg
+*.webm

@@ -17,16 +17,15 @@ class Track(db.Model):
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
-    def __init__(self,video_id,vehicle_id,tracking_number,start_time,end_time):
+    def __init__(self,video_id,tracking_number,start_time,end_time):
         self.id = generate_random(24)
         self.video_id = video_id
-        self.vehicle_id = vehicle_id
         self.tracking_number = tracking_number
         self.start_time = start_time
         self.end_time = end_time
 
     def __repr__(self):
-        return f"{self.video_id}:{self.vehicle_id}"
+        return f"{self.video_id}:{self.tracking_number}"
 
 
     def add(self,log):

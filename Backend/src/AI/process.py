@@ -89,7 +89,7 @@ def gen_frame(device,model,log):
                 show_image = cv2.addWeighted(src1=current_frame, alpha=0.8, src2=mask3, beta=0.2, gamma=0)
                 roi = cv2.bitwise_and(mask2, current_frame)
                 model.start(roi,show_image,current_frame)
-
+                
                 cv2.putText(model.show_image,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
                 ret, buffer = cv2.imencode('.jpg', model.show_image)
                 current_frame = buffer.tobytes()
@@ -215,12 +215,11 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
         if data is None:
             continue
         data_time = datetime.now().strftime("%m:%d:%Y_%H_%M_%S.%f")
-        full_path = os.path.join(STORAGE,'full_image',data_time+'.jpg')
-        outputs = deepsort.update(data['xywhs'].cpu(), data['confs'].cpu(), 
-                data['clss'], data['img'])
+        full_path = os.path.join(STORAGE, 'full_image', data_time+'.jpg')
+        outputs = deepsort.update(data['xywhs'].cpu(), data['confs'].cpu(),
+                                  data['clss'], data['img'])
 
         if len(outputs) > 0:
-            
             count = 0
             response = []
             for j, (output, conf) in enumerate(zip(outputs, data['confs'])):
@@ -230,7 +229,6 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
 
                 c = int(cls)  # integer class
                 name = data['names'][c]
-                
 
                 bbox_left = output[0]
                 bbox_top = output[1]
@@ -242,73 +240,39 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 # licenseplate = mlp.recog_lpr(data['img'])
                 # crop_path = os.path.join(STORAGE,'crop_image',str(count) + crop_time+'.jpg')
                 # cv2.imwrite(crop_path,crop_image)
-                licenseplate , crop_image,vehicle_id = recognize_lp(data['img'],mlp,count, device.id,log)
-                if licenseplate == 'unknonwn':
-                    plot_one_box(bboxes, data['img'], label=name, color=(255, 0, 0), line_thickness=2)
-                    track_result = {
-                        "video_id" : kcw.video_id,
-                        "tracking_number" : int(id.item()),
-                        "vehicle_id" : vehicle_id,
-                        "start_time" : datetime.now(),
-                        "end_time" : datetime.now()
-                    }
-                    tracking = t.create_or_update(track_result,log)
-                    boundingbox = {
-                        'x' : int(bbox_left),
-                        'y' : int(bbox_top),
-                        'w' : int(bbox_w),
-                        'h' : int(bbox_h)
-                    }
-                    detect = Detection(tracking.id,name,full_path,boundingbox,data['event_time'])
-                    detect.add(log)
-                    response.append({
-                        'data_key' : 'GB_20210001_LPR',
-                        'device_id' : device.id,
-                        'tracking_id' : tracking.id,
-                        'vehicle_id' : vehicle_id,
-                        'license _plate' : licenseplate,
-                        'type' : detect.type,
-                        'attribute' : None,
-                        'region' : device.region,
-                        'full_image': detect.full_image,
-                        'crop_image' : crop_image,
-                        'bounding_box' : detect.bounding_box,
-                        'event_time' : data['event_time'].strftime("%m:%d:%Y_%H_%M_%S.%f")
-                    })
-                else:
-                    m = recognize_vehicle(data['img'],vr,vehicle_id,log)
-                    plot_one_box(bboxes, data['img'], label=name, color=(255, 0, 0), line_thickness=2)
-                    count += 1
-                    track_result = {
-                        "video_id" : kcw.video_id,
-                        "tracking_number" : int(id.item()),
-                        "vehicle_id" : vehicle_id,
-                        "start_time" : datetime.now(),
-                        "end_time" : datetime.now()
-                    }
-                    tracking = t.create_or_update(track_result,log)
-                    boundingbox = {
-                        'x' : int(bbox_left),
-                        'y' : int(bbox_top),
-                        'w' : int(bbox_w),
-                        'h' : int(bbox_h)
-                    }
-                    detect = Detection(tracking.id,name,full_path,boundingbox,data['event_time'])
-                    detect.add(log)
-                    response.append({
-                        'data_key' : 'GB_20210001_LPR',
-                        'device_id' : device.id,
-                        'tracking_id' : tracking.id,
-                        'vehicle_id' : vehicle_id,
-                        'license _plate' : licenseplate,
-                        'type' : detect.type,
-                        'attribute' : m,
-                        'region' : device.region,
-                        'full_image': detect.full_image,
-                        'crop_image' : crop_image,
-                        'bounding_box' : detect.bounding_box,
-                        'event_time' : data['event_time'].strftime("%m:%d:%Y_%H_%M_%S.%f")
-                    })
+
+                plot_one_box(bboxes, data['img'], label=name, color=(
+                    255, 0, 0), line_thickness=2)
+                count += 1
+                track_result = {
+                    "video_id": kcw.video_id,
+                    "tracking_number": int(id.item()),
+                    "start_time": datetime.now(),
+                    "end_time": datetime.now()
+                }
+                tracking = t.create_or_update(track_result, log)
+                crop_image = recognize_lp(data['img'],mlp,count, tracking.id,log)
+                m = recognize_vehicle(data['img'],vr,tracking.id,log)
+                boundingbox = {
+                    'x' : int(bbox_left),
+                    'y' : int(bbox_top),
+                    'w' : int(bbox_w),
+                    'h' : int(bbox_h)
+                }
+                detect = Detection(tracking.id,name,full_path,boundingbox,data['event_time'])
+                detect.add(log)
+                response.append({
+                    'data_key' : 'GB_20210001_LPR',
+                    'device_id' : device.id,
+                    'tracking_id' : tracking.id,
+                    'type' : detect.type,
+                    'attribute' : m,
+                    'region' : device.region,
+                    'full_image': detect.full_image,
+                    'crop_image' : crop_image,
+                    'bounding_box' : detect.bounding_box,
+                    'event_time' : data['event_time'].strftime("%m:%d:%Y_%H_%M_%S.%f")
+                })
             cv2.imwrite(full_path,data['img'])
             log.info("Send data:{}".format(response))
             try:
@@ -324,8 +288,8 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 continue
 
 
-def recognize_vehicle(frame,vr,vehicle_id,log):
-    data = c.get_classify_by_vehicle_id(vehicle_id,log)
+def recognize_vehicle(frame,vr,tracking_id,log):
+    data = c.get_classify_by_vehicle_id(tracking_id,log)
     if data.code is not CODE_EMPTY:
         return data.data['meta_data']
     img = vr.pre_process(frame)
@@ -335,23 +299,21 @@ def recognize_vehicle(frame,vr,vehicle_id,log):
         'direction' : direction,
         'type' : type
     }
-    classify = Classification(vehicle_id,m)
+    classify = Classification(tracking_id,m)
     classify.add(log)
     return m
 
-def recognize_lp(frame,mlp,count,device_id,log):
+def recognize_lp(frame,mlp,count,tracking_id,log):
     crop_time = datetime.now().strftime("%m:%d:%Y_%H_%M_%S.%f")
     # crop_image = cv2.resize(frame, (416, 416), interpolation=cv2.INTER_CUBIC)
-    lp, crop_image = mlp.recog_lpr(frame)
-    if lp == 'unknonwn':
-        return lp,None,None
-    crop_path = os.path.join(STORAGE,'crop_image',str(count) + crop_time+'.jpg')
-    cv2.imwrite(crop_path,crop_image)
-    vehicle = v.create_or_update(lp,log)
-    m = mg.create(vehicle.id,device_id,log)
-    recognize = Recognize(vehicle.id,lp,crop_path)
-    recognize.add(log)
-    return lp, crop_path, vehicle.id
+    crop_image = mlp.lp_img(frame)
+    if crop_image:
+        crop_path = os.path.join(STORAGE,'crop_image',str(count) + crop_time+'.jpg')
+        cv2.imwrite(crop_path,crop_image)
+        recognize = Recognize(tracking_id,crop_path)
+        recognize.add(log)
+        return crop_path
+    return None
 
 
 async def handle_message(data,log):

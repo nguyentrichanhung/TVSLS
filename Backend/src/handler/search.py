@@ -14,23 +14,6 @@ from src.const import *
 from src.service.response import new_alchemy_encoder,row2dict
 
 
-def search_by_region(region,log):
-    try:
-        data = db.session.query(Vehicle,Device,Detection).filter(Detection.vehicle_id == Vehicle.id
-                                                    ).filter(Vehicle.device_id == Device.id
-                                                    ).filter(Device.region == region)
-        db.session.close()
-        res_dict = row2dict(data)
-        return DataReponse(data = res_dict)
-    except SQLAlchemyError as e:
-        db.session.close()
-        log.error(e)
-        return DataReponse(message= 'Database error!!!',code = CODE_DATABASE_FAIL)
-    except  Exception as e:
-        db.session.close()
-        log.error(e)
-        return DataReponse(message = 'System error!!!',code= CODE_FAIL)
-
 def search_by_time(start_time,end_time,log):
     try:
         data = []
