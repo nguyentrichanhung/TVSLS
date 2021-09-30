@@ -25,22 +25,23 @@ from src.migrate.recognize import Recognize
 from src.migrate.vehicle_management import VM
 from src.migrate.classification import Classification
 
+
 import src.handler.track as t
 import  src.handler.vehicle as v
 import src.handler.classification as c
 import src.handler.vehicle_management as mg
 
 
+
 # logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
-ROOTDIR = '/usr/src/Backend/src/AI'
-STORAGE = '/usr/src/Backend/src/AI/storage'
+# ROOTDIR = '/usr/src/Backend/src/AI'
+# STORAGE = '/usr/src/Backend/src/AI/storage'
 q = Queue()
 tracking_data = Queue()
 
-# data = None
-# image = None
-# event_time = None
+ls = None
+
 pts = [(593, 709), (9, 555), (503, 269), (695, 240), (794, 308), (595, 705)]
 
 
@@ -289,7 +290,7 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
 
 
 def recognize_vehicle(frame,vr,tracking_id,log):
-    data = c.get_classify_by_vehicle_id(tracking_id,log)
+    data = c.get_classify_by_track_id(tracking_id,log)
     if data.code is not CODE_EMPTY:
         return data.data['meta_data']
     img = vr.pre_process(frame)
@@ -306,8 +307,8 @@ def recognize_vehicle(frame,vr,tracking_id,log):
 def recognize_lp(frame,mlp,count,tracking_id,log):
     crop_time = datetime.now().strftime("%m:%d:%Y_%H_%M_%S.%f")
     # crop_image = cv2.resize(frame, (416, 416), interpolation=cv2.INTER_CUBIC)
-    crop_image = mlp.lp_img(frame)
-    if crop_image:
+    crop_image = mlp.lp_image(frame)
+    if crop_image is not None:
         crop_path = os.path.join(STORAGE,'crop_image',str(count) + crop_time+'.jpg')
         cv2.imwrite(crop_path,crop_image)
         recognize = Recognize(tracking_id,crop_path)
