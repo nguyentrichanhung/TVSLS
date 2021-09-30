@@ -35,6 +35,7 @@ from src.handler.video import *
 from src.handler.track import *
 import src.handler.vehicle as v
 from src.handler.upload import *
+import src.handler.lanes as l
 model = None
 
 @app.route('/stream_feed')
@@ -52,6 +53,87 @@ def stream():
 def video(video_name):
     return render_template('video.html',vid_name=video_name)
 
+
+### DEVICE MANAGEMENT MODULE
+@app.route('/device', methods=["POST"])
+def add_devices():
+    pass
+
+
+### CONFIG MANAGEMENT MODULE
+@app.route('/configs/init')
+def config_init():
+    # if request.method == "GET":
+
+    pass
+
+@app.route('/configs/update')
+def config_update():
+    if request.method == "POST":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        speed_cofig = json_reg['speed']
+        lane_config = json_reg['lane']
+        direct_config = json_reg['direction']
+        storage_config = json_reg['storage']
+        video_config = json_reg['video']
+        valid = ValidateConfig(speed_conf=speed_cofig,lane_conf=lane_config,
+                            direct_conf=direct_config,storage_config=storage_config,video_conf=video_config)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+
+
+@app.route('/configs/lanes')
+def create_lanes():
+    if request.method == "POST":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        lanes = json_reg['lanes']
+        valid = ValidateLanes(lanes)
+        ok,msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        res = l.creates(lanes,log)
+        if res is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,status=True), status.HTTP_201_CREATED
+
+@app.route('/configs/lanes')
+def get_lanes():
+    if request.method == "GET":
+        res = l.get_config_lst(log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False),status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,data=res),status.HTTP_200_OK
+
+@app.route('/configs/lanes')
+def update_lanes():
+    if request.method == "PATCH":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        lanes = json_reg['lanes']
+        valid = ValidateLanes(lanes)
+        ok,msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        res = l.creates(lanes,log)
+        if res is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,status=True), status.HTTP_200_OK
+
+@app.route('/configs/lanes/<lane_id>')
+def delete_lane(lane_id):
+    if request.method == "GET":
+        if lane_id is None:
+            return ApiResponse(message="lane id cannot Null"), status.HTTP_400_BAD_REQUEST
+        res = l.delete(lane_id)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,status=True), status.HTTP_200_OK
 
 @app.route('/search', methods=["POST"])
 def search_in_range():
@@ -264,30 +346,6 @@ def downoad_video(video_id):
 @app.errorhandler(413)
 def too_large(e):
     return "File is too large", 413
-### Config APIs
-@app.route('/configs/update')
-def config_update():
-    if request.method == "POST":
-        json_reg = request.get_json(force=True,silent=True)
-        if not json_reg:
-            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
-        speed_cofig = json_reg['speed']
-        lane_config = json_reg['lane']
-        direct_config = json_reg['direction']
-        storage_config = json_reg['storage']
-        video_config = json_reg['video']
-        valid = ValidateConfig(speed_conf=speed_cofig,lane_conf=lane_config,
-                            direct_conf=direct_config,storage_config=storage_config,video_conf=video_config)
-        ok, msg = valid.validate()
-        if not ok:
-            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
-
-@app.route('/configs/init')
-def config_init():
-    # if request.method == "GET":
-
-    pass
-
 
 if __name__ == '__main__':
     model = LisencePlate()

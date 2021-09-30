@@ -57,6 +57,7 @@ from src.migrate.recognize import Recognize
 from src.migrate.track import Track
 from src.migrate.video import Video
 from src.migrate.config import Config
+from src.migrate.lane_properties import LaneProperty
 migrate = Migrate(app, db)
 
 # use the modified encoder class to handle ObjectId & datetime object while jsonifying the response.

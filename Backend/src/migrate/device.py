@@ -8,8 +8,8 @@ class Device(db.Model):
     __tablename__ = 'Devices'
 
     id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
-    type = db.Column(db.String(10),nullable=True)
-    name = db.Column(db.String(10),nullable = True)
+    type = db.Column(db.String(50),nullable=True)
+    name = db.Column(db.String(50),nullable = True)
     location = db.Column(db.JSON,nullable = False)
     region = db.Column(db.String(10),nullable = True)
     stream_url = db.Column(db.String(100),nullable = False)

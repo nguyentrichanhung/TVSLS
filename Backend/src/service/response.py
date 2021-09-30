@@ -47,6 +47,14 @@ class ValidateConfig:
 
 @dataclass_json
 @dataclass
+class ValidateLanes:
+    lanes : json
+    def validate(self)-> [bool,str]:
+        if not self.lanes:
+            return False, 'Invalid lanes info'
+        return True, ''
+@dataclass_json
+@dataclass
 class DataReponse:
     code: int = CODE_DONE
     message: str = "success"
