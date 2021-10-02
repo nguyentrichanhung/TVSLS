@@ -6,13 +6,13 @@ from src.const import *
 from src.service.response import new_alchemy_encoder,row2dict
 
 
-def creates(data,log):
+def creates(data,device_id,log):
     try:
         if len(data) == 0:
             return DataReponse(message= 'Invalid lane properties',code = CODE_EMPTY)
         lane_lst = []
         for k,v in data.items():
-            lane_lst.append(LaneProperty(v['device_id'],v['name'],v['vehicle_type'],v['speed_limit'],v['direction']))
+            lane_lst.append(LaneProperty(device_id,v['name'],v['vehicle_type'],v['speed_limit'],v['direction'],v['points']))
         db.session.add_all(lane_lst)
         db.session.commit()
         return DataReponse(message= 'Insert successfully!',code = CODE_DONE)
@@ -40,17 +40,20 @@ def get_config_lst(log):
         log.error(e)
         return DataReponse(message = 'System error!!!',code= CODE_FAIL)
 
-def updates(data,log):
+def updates(data,device_id,log):
     try:
         if len(data) == 0:
-            return DataReponse(message= 'Invalid update infor',code = CODE_EMPTY)
+            return DataReponse(message= 'Invalid update info',code = CODE_EMPTY)
         for k,v in data.items():
             lane = db.session.query(LaneProperty).filter_by(LaneProperty.id ==k).first()
-            lane.device_id = v['device_id']
+            if lane is None:
+                return DataReponse(message= 'Not found lane information with id: {}'.format(k),code = CODE_EMPTY)
+            lane.device_id = device_id
             lane.name = v['name']
             lane.vehicle_type = v['vehicle_type']
             lane.speed_limit = v['speed_limit']
             lane.direction = v['direction']
+            lane.points = v['points']
             lane.updated_at = datetime.datetime.now()
             db.session.commit()
         return DataReponse(message= 'Update successfully!',code = CODE_DONE)
@@ -78,4 +81,4 @@ def delete(lane_id,log):
     except  Exception as e :
         db.session.close()
         log.error(e)
-        return DataReponse(message = 'System error!!!',code= CODE_FAIL       
+        return DataReponse(message = 'System error!!!',code= CODE_FAIL)       

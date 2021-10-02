@@ -35,22 +35,21 @@ class ValidateData:
 @dataclass_json
 @dataclass
 class ValidateConfig:
-    speed_conf: json
-    lane_conf: json
-    direct_conf: json
-    storage_conf: json
-    video_conf: json
-    def validate(self) -> [bool,str]:
-        if not self.speed_conf or not self.lane_conf or not self.direct_conf or not self.storage_conf or not self.video_conf:
-            return False, 'Invalid data'
+    stream : json
+    videos : json
+    device_id: str
+    def validate(self)-> [bool,str]:
+        if not self.stream or not self.videos or not self.device_id:
+            return False, 'Invalid config info'
         return True, ''
 
 @dataclass_json
 @dataclass
 class ValidateLanes:
     lanes : json
+    device_id : str
     def validate(self)-> [bool,str]:
-        if not self.lanes:
+        if not self.lanes or not self.device_id:
             return False, 'Invalid lanes info'
         return True, ''
 @dataclass_json

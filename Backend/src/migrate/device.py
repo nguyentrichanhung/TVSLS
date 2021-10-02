@@ -12,17 +12,19 @@ class Device(db.Model):
     name = db.Column(db.String(50),nullable = True)
     location = db.Column(db.JSON,nullable = False)
     region = db.Column(db.String(10),nullable = True)
+    metadata = db.Column(db.JSON,nullable = False)
     stream_url = db.Column(db.String(100),nullable = False)
     created_at = db.Column(db.DateTime(),default=datetime.datetime.now())
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
-    def __init__(self,type,name,location,region,stream_url):
+    def __init__(self,type,name,location,region,metadata,stream_url):
         self.id = generate_random(24)
         self.type = type
         self.name = name
         self.region = region
         self.location = location
+        self.metadata = metadata
         self.stream_url = stream_url
 
     def __repr__(self):
@@ -49,13 +51,15 @@ class Device(db.Model):
             # db.session.close()    
             return self 
 
-    def update(self,device_id,device_code,type,location,group,log):
+    def update(self,device_id,type,name,location,region,metadata,stream_url,log):
         try:
             devide = Device.query.filter_by(Device.id ==device_id).first()
             devide.type = type
-            devide.device_code = device_code
+            devide.name = name
             devide.location = location
-            devide.group = group
+            devide.region = region
+            devide.metadata = metadata
+            devide.stream_url = stream_url
             devide.updated_at = datetime.datetime.now()
             db.session.commit()
         except SQLAlchemyError as e:

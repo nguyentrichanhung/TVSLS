@@ -8,18 +8,18 @@ class Config(db.Model):
     __tablename__ = 'Configs'
     id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
     device_id = db.Column(db.String(24),db.ForeignKey('Devices.id',ondelete='cascade'),nullable = False)
-    rule_data = db.Column(db.JSON,nullable = False)
+    config_data = db.Column(db.JSON,nullable = False)
     created_at = db.Column(db.DateTime(),default=datetime.datetime.now())
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
-    def __init__(self,device_id,rule_data):
+    def __init__(self,device_id,config_data):
         self.id = generate_random(24)
         self.device_id = device_id
-        self.rule_data = rule_data
+        self.config_data = config_data
 
     def __repr__(self):
-        return f"{self.id}:{self.start_time}"
+        return f"{self.id}:{self.config_data}"
 
 
     def add(self,log):
@@ -32,11 +32,11 @@ class Config(db.Model):
             return None
         return self
 
-    def update(self,config_id,device_id,rule_data,log):
+    def update(self,config_id,device_id,config_data,log):
         try:
             config = Config.query.filter_by(Config.id ==config_id).first()
             config.device_id = device_id
-            config.rule_data = rule_data
+            config.config_data = config_data
             config.updated_at = datetime.datetime.now()
             db.session.commit()
         except SQLAlchemyError as e:
