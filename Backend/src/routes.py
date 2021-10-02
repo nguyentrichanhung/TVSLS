@@ -33,9 +33,13 @@ from src.handler.validate import validate_id, validate_vehicle_id
 
 from src.handler.video import *
 from src.handler.track import *
-import src.handler.vehicle as v
 from src.handler.upload import *
+
+
+import src.handler.vehicle as v
 import src.handler.lanes as l
+import src.handler.config as c
+
 model = None
 
 @app.route('/stream_feed')
@@ -61,28 +65,37 @@ def add_devices():
 
 
 ### CONFIG MANAGEMENT MODULE
-@app.route('/configs/init')
-def config_init():
+@app.route('/configs/common')
+def create_conmmon_config():
     # if request.method == "GET":
 
     pass
 
-@app.route('/configs/update')
+@app.route('/configs/common')
 def config_update():
     if request.method == "POST":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
-        speed_cofig = json_reg['speed']
-        lane_config = json_reg['lane']
-        direct_config = json_reg['direction']
-        storage_config = json_reg['storage']
-        video_config = json_reg['video']
-        valid = ValidateConfig(speed_conf=speed_cofig,lane_conf=lane_config,
-                            direct_conf=direct_config,storage_config=storage_config,video_conf=video_config)
+        data_stream = json_reg['stream']
+        data_video = json_reg['videos']
+        device_id = json_reg['device_id']
+        valid = ValidateConfig(data_stream,data_video,device_id)
         ok, msg = valid.validate()
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        res = c.creates(device_id,data_video,data_stream,log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,status=True), status.HTTP_201_CREATED
+
+@app.route('/configs/common')
+def config_update():
+    if request.method == "GET":
+        res = c.get_config(log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False),status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,data=res),status.HTTP_200_OK       
 
 
 @app.route('/configs/lanes')
@@ -92,11 +105,12 @@ def create_lanes():
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
         lanes = json_reg['lanes']
-        valid = ValidateLanes(lanes)
+        device_id = json_reg['device_id']
+        valid = ValidateLanes(lanes,device_id)
         ok,msg = valid.validate()
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
-        res = l.creates(lanes,log)
+        res = l.creates(lanes,device_id,log)
         if res is not CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,status=True), status.HTTP_201_CREATED
@@ -116,11 +130,12 @@ def update_lanes():
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
         lanes = json_reg['lanes']
-        valid = ValidateLanes(lanes)
+        device_id = json_reg['device_id']
+        valid = ValidateLanes(lanes,device_id)
         ok,msg = valid.validate()
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
-        res = l.creates(lanes,log)
+        res = l.updates(lanes,device_id,log)
         if res is not CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,status=True), status.HTTP_200_OK

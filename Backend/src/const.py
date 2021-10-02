@@ -8,3 +8,27 @@ CODE_EMPTY = 1004
 ### Root Folder
 ROOTDIR = '/usr/src/Backend/src/AI'
 STORAGE = '/usr/src/Backend/src/AI/storage'
+
+
+
+### Rule Type
+RULES = {
+    "SP" : "SPEED",
+    "RL" : "RED LIGHT RUNNING",
+    "WD" : "WRONG DIRECTION",
+    "IP" : "ILLEGAL PARKING",
+    "HD" : "HELMET DETECTION",
+    "NF" : "NON-OFFENCE"
+}
+
+### Video
+MAX_DURATION = 7
+
+
+### Stream
+
+CHANNELS = {
+    '0' : 'cam0_0',
+    '1' : 'cam0_1',
+    '2' : 'cam0_2'
+}
