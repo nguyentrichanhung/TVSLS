@@ -61,7 +61,7 @@ def creates(device_id,data_video,data_stream,log):
 
 def get_config(log):
     try:
-        data = db.session.query(Config).all()
+        data = db.session.query(Config).first()
         db.session.close()
         res_dict = row2dict(data)
         return DataReponse(data = res_dict,message='Successful')
