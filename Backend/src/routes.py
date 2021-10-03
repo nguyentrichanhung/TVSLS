@@ -34,12 +34,12 @@ from src.handler.validate import validate_id, validate_vehicle_id
 from src.handler.video import *
 from src.handler.track import *
 from src.handler.upload import *
-
+from src.handler.health_check import *
 
 import src.handler.vehicle as v
 import src.handler.lanes as l
 import src.handler.config as c
-
+import src.handler.device as d
 model = None
 
 @app.route('/stream_feed')
@@ -57,19 +57,66 @@ def stream():
 def video(video_name):
     return render_template('video.html',vid_name=video_name)
 
+### HEALTH CHECK
+@app.route('/system/cpu', methods=["GET"])
+def cpu_info():
+    if request.method == "GET":
+        res = cpu_check(log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
+
+@app.route('/system/gpu', methods=["GET"])
+def gpu_info():
+    if request.method == "GET":
+        res = gpu_check(log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
 
 ### DEVICE MANAGEMENT MODULE
 @app.route('/device', methods=["POST"])
 def add_devices():
-    pass
+    if request.method == "POST":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        device = json_reg['device']
+        valid = ValidateDevce(device)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        res = d.creates(device,log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_201_CREATED
 
+
+@app.route('/device/<device_id>', methods=["GET"])
+def get_devices(device_id):
+    if request.method == "GET":
+        if not device_id:
+            return ApiResponse(message="device id cannot empty!!"), status.HTTP_400_BAD_REQUEST
+        res = d.get_device(device_id,log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
+
+@app.route('/device/<device_id>', methods=["PATCH"])
+def update_device(device_id):
+    if request.method == "PATCH":
+        if not device_id:
+            return ApiResponse(message="device id cannot empty!!"), status.HTTP_400_BAD_REQUES
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        device_info = json_reg['device']
+        res = d.edit_device(device_id,device_info,log)
+        if res.code is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
 
 ### CONFIG MANAGEMENT MODULE
-@app.route('/configs/common')
-def create_conmmon_config():
-    # if request.method == "GET":
-
-    pass
 
 @app.route('/configs/common')
 def config_update():
@@ -90,12 +137,31 @@ def config_update():
         return ApiResponse(message=res.message,status=True), status.HTTP_201_CREATED
 
 @app.route('/configs/common')
-def config_update():
+def get_config():
     if request.method == "GET":
         res = c.get_config(log)
         if res.code is not CODE_DONE:
             return ApiResponse(message=res.message,status=False),status.HTTP_400_BAD_REQUEST
-        return ApiResponse(message=res.message,data=res),status.HTTP_200_OK       
+        return ApiResponse(message=res.message,data=res),status.HTTP_200_OK
+
+@app.route('/configs/common')
+def get_config():
+    if request.method == "PATCH":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        data_stream = json_reg['stream']
+        data_video = json_reg['videos']
+        device_id = json_reg['device_id']
+        config_id = json_reg['config_id']
+        valid = ValidateConfig(data_stream,data_video,device_id)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        res = c.updates(config_id,device_id,data_video,data_stream,log)
+        if res is not CODE_DONE:
+            return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
+        return ApiResponse(message=res.message,status=True), status.HTTP_200_OK        
 
 
 @app.route('/configs/lanes')

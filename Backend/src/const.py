@@ -8,7 +8,7 @@ CODE_EMPTY = 1004
 ### Root Folder
 ROOTDIR = '/usr/src/Backend/src/AI'
 STORAGE = '/usr/src/Backend/src/AI/storage'
-
+ROOT = ''
 
 
 ### Rule Type

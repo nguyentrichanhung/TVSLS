@@ -14,8 +14,8 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 @dataclass_json
 @dataclass
-class ValidateData:
-    data: str
+class ValidateDevce:
+    data: json
 
     def validate(self) -> [bool,str]:
         if not self.data:
