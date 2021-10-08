@@ -1,15 +1,16 @@
 from src import db
-from src.util.generate_random import generate_random
+
 import datetime
+import  uuid
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.sql import func
 
 class Track(db.Model):
     __tablename__ = 'Tracks'
 
-    id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
-    video_id = db.Column(db.String(24),db.ForeignKey('Videos.id',ondelete='cascade'),nullable = True)
-    vehicle_id = db.Column(db.String(24),db.ForeignKey('Vehicles.id',ondelete='cascade'),nullable = True)
+    id = db.Column(db.String(50), unique = True,primary_key = True,nullable = False)
+    video_id = db.Column(db.String(50),db.ForeignKey('Videos.id',ondelete='cascade'),nullable = True)
+    vehicle_id = db.Column(db.String(50),db.ForeignKey('Vehicles.id',ondelete='cascade'),nullable = True)
     tracking_number = db.Column(db.Integer,nullable = False,unique = False)
     start_time = db.Column(db.DateTime(),nullable = False)
     end_time = db.Column(db.DateTime(),nullable = False)
@@ -18,7 +19,7 @@ class Track(db.Model):
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
     def __init__(self,video_id,tracking_number,start_time,end_time):
-        self.id = generate_random(24)
+        self.id = str(uuid.uuid4())
         self.video_id = video_id
         self.tracking_number = tracking_number
         self.start_time = start_time

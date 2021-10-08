@@ -9,7 +9,7 @@ from src.service.response import new_alchemy_encoder,row2dict
 
 def creates(device,log):
     try:
-        device = Device(device['type'],device['name'],device['location'],device['region'],device['metadata'])
+        device = Device(device['type'],device['name'],device['location'],device['region'],device['meta_data'])
         device.add(log)
         return DataReponse(message= 'Insert successfully!',data=device.id,code = CODE_DONE)
     except  SQLAlchemyError as e:
@@ -21,8 +21,22 @@ def creates(device,log):
         log.error(e)
         return DataReponse(message = 'System error!!!',code= CODE_FAIL)
 
+def get_cameras(log):
+    try:
+        devices = db.session.query(Device).filter_by(Device.type == 'camera').all()
+        db.session.close()
+        if not devices:
+            return DataReponse(message= 'Invalid device_id',code = CODE_EMPTY)
+    except  SQLAlchemyError as e:
+        db.session.rollback()
+        log.error(e)
+        return DataReponse(message= 'Database error!!!',code = CODE_DATABASE_FAIL)
+    except  Exception as e :
+        db.session.rollback()
+        log.error(e)
+        return DataReponse(message = 'System error!!!',code= CODE_FAIL)
 
-def get_device(device_id,log):
+def get_device_by_id(device_id,log):
     try:
         device = db.session.query(Device).filter_by(Device.id == device_id).first()
         db.session.close()
@@ -49,7 +63,7 @@ def edit_device(device_id,device_info,log):
         device.name = device_info['name']
         device.location  = device_info['location']
         device.region =device_info['region']
-        device.metadata  =device_info['metadata']
+        device.meta_data  =device_info['meta_data']
         db.session.commit()
     except SQLAlchemyError as e:
         db.session.close()

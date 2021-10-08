@@ -1,21 +1,23 @@
 from src import db
-from src.util.generate_random import generate_random
+
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 import datetime
 from sqlalchemy.sql import func
+import uuid
+
 
 class Classification(db.Model):
     __tablename__ = 'Classification'
 
-    id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
-    tracking_id = db.Column(db.String(24),db.ForeignKey('Tracks.id',ondelete='cascade'),nullable = False)
+    id = db.Column(db.String(50), unique = True,primary_key = True,nullable = False)
+    tracking_id = db.Column(db.String(50),db.ForeignKey('Tracks.id',ondelete='cascade'),nullable = False)
     meta_data = db.Column(db.JSON,nullable = False)
     created_at = db.Column(db.DateTime(),default=datetime.datetime.now())
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
     def __init__(self,tracking_id,meta_data):
-        self.id = generate_random(24)
+        self.id = str(uuid.uuid4())
         self.tracking_id = tracking_id
         self.meta_data = meta_data  
 

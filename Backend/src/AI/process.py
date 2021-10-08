@@ -40,10 +40,14 @@ import src.handler.vehicle_management as mg
 q = Queue()
 tracking_data = Queue()
 
-ls = None
+lane_lst = {}
 
 pts = [(593, 709), (9, 555), (503, 269), (695, 240), (794, 308), (595, 705)]
 
+def get_lane_properties(lanes,log):
+    global lane_lst
+    lane_lst = lanes
+    log.info('pass value success')
 
 def gen_frame(device,model,log):
     kcw = KeyClipWriter(bufSize=100)
@@ -52,6 +56,9 @@ def gen_frame(device,model,log):
     freq = cv2.getTickFrequency()
     frame_rate_calc  = 25
     deepsort = model.deepsort
+    meta_data = device['meta_data']
+    stream_url = "rtsp://{}:{}@{}:{}/{}".format(meta_data['user'],
+                    meta_data['password'],meta_data['ip'],meta_data['rtsp_port'],meta_data['channel'])
     # videostream  = VideoStream(device.stream_url,resolution=(1280,720),framerate=60)
     # videostream.start()
     # time.sleep(1)
@@ -66,7 +73,7 @@ def gen_frame(device,model,log):
         thread.start()
         consecFrames = 0
         while True:
-            videostream  = VideoStream(device.stream_url,resolution=(1280,720),framerate=60)
+            videostream  = VideoStream(stream_url,resolution=(meta_data['resolution']['width'],meta_data['resolution']['height']),framerate=60)
             videostream.start()
             time.sleep(1)
             if not videostream:
@@ -80,19 +87,27 @@ def gen_frame(device,model,log):
                     log.error("!!! Couldn't read frame!")
                     log.info("Try to reconnect!")
                     break
-                current_frame = cv2.resize(current_frame, (1280,720 ))
+                current_frame = cv2.resize(current_frame, (meta_data['resolution']['width'],meta_data['resolution']['height'] ))
                 mask = np.zeros(current_frame.shape, np.uint8)
-                points = np.array(pts, np.int32)
-                points = points.reshape((-1, 1, 2))
-                mask = cv2.polylines(mask, [points], True, (255, 255, 255), 2)
-                mask2 = cv2.fillPoly(mask.copy(), [points], (255, 255, 255))  # 用于求 ROI
-                mask3 = cv2.fillPoly(mask.copy(), [points], (0, 255, 0))
+                for lane in lane_lst:
+                    pts = lane['points']['p']
+                    points = np.array(pts, np.int32)
+                    points = points.reshape((-1, 1, 2))
+                    mask = cv2.polylines(mask, [points], True, (255, 255, 255), 2)
+                    mask2 = cv2.fillPoly(mask.copy(), [points], (255, 255, 255))
+                    mask3 = cv2.fillPoly(mask.copy(), [points], (0, 255, 0))
+                # mask = np.zeros(current_frame.shape, np.uint8)
+                # points = np.array(pts, np.int32)
+                # points = points.reshape((-1, 1, 2))
+                # mask = cv2.polylines(mask, [points], True, (255, 255, 255), 2)
+                # mask2 = cv2.fillPoly(mask.copy(), [points], (255, 255, 255))  # 用于求 ROI
+                # mask3 = cv2.fillPoly(mask.copy(), [points], (0, 255, 0))
                 show_image = cv2.addWeighted(src1=current_frame, alpha=0.8, src2=mask3, beta=0.2, gamma=0)
                 roi = cv2.bitwise_and(mask2, current_frame)
                 model.start(roi,show_image,current_frame)
                 
                 cv2.putText(model.show_image,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
-                ret, buffer = cv2.imencode('.jpg', model.show_image)
+                _, buffer = cv2.imencode('.jpg', model.show_image)
                 current_frame = buffer.tobytes()
                 q.put(current_frame)
                 data = {}
@@ -117,7 +132,7 @@ def gen_frame(device,model,log):
                             p = "{}/{}.webm".format(video_path,
                                 timestamp.strftime("%Y%m%d-%H%M%S"))
                             kcw.start(p, cv2.VideoWriter_fourcc(*'vp80'),
-                                20,device.id,log)
+                                20,device['id'],log)
                         except  Exception as e:
                             log.info(e)
                 if updateConsecFrames:
@@ -264,11 +279,11 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 detect.add(log)
                 response.append({
                     'data_key' : 'GB_20210001_LPR',
-                    'device_id' : device.id,
+                    'device_id' : device['id'],
                     'tracking_id' : tracking.id,
                     'type' : detect.type,
                     'attribute' : m,
-                    'region' : device.region,
+                    'region' : device['region'],
                     'full_image': detect.full_image,
                     'crop_image' : crop_image,
                     'bounding_box' : detect.bounding_box,

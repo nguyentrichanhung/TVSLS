@@ -1,14 +1,15 @@
 from src import db
-from src.util.generate_random import generate_random
+
 import datetime
+import uuid
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.sql import func
 
 
 class Video(db.Model):
     __tablename__ = 'Videos'
-    id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
-    device_id = db.Column(db.String(24),db.ForeignKey('Devices.id',ondelete='cascade'),nullable = False)
+    id = db.Column(db.String(50), unique = True,primary_key = True,nullable = False)
+    device_id = db.Column(db.String(50),db.ForeignKey('Devices.id',ondelete='cascade'),nullable = False)
     video_path = db.Column(db.String(200),nullable = False,unique = True)
     start_time = db.Column(db.DateTime(),nullable = False)
     end_time = db.Column(db.DateTime(),nullable = True)
@@ -17,7 +18,7 @@ class Video(db.Model):
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
     def __init__(self,device_id,video_path,start_time,end_time):
-        self.id = generate_random(24)
+        self.id = str(uuid.uuid4())
         self.device_id = device_id
         self.video_path = video_path
         self.start_time = start_time

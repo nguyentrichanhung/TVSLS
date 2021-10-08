@@ -4,9 +4,13 @@ import sys
 import base64
 import json
 
-import time
+from datetime import datetime, timedelta
 from threading import Thread
 from werkzeug.utils import secure_filename
+from  werkzeug.security import generate_password_hash, check_password_hash
+
+
+
 
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
@@ -17,15 +21,16 @@ formatter = logging.Formatter('%(asctime)s - %(filename)s - %(levelname)s - %(me
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
+
+# flask imports
 from flask import  request,render_template,Response , send_file, make_response,send_from_directory
 from flask_api import status
 sys.path.append('/usr/src/Backend')
-# sys.path.append('/home/goback-research/LPR/TVSLS/Backend')
-print(sys.path)
+
 from src import app
 from src.service.response import *
 from src.const import *
-from src.AI.process import gen_frame, gen_vid, setup_cameras
+from src.AI.process import gen_frame, gen_vid, setup_cameras,get_lane_properties
 from src.AI.yolov5 import  LisencePlate
 from src.migrate.device import Device
 from src.handler.search import *
@@ -40,6 +45,11 @@ import src.handler.vehicle as v
 import src.handler.lanes as l
 import src.handler.config as c
 import src.handler.device as d
+import src.handler.users as u
+
+from src.util.valid import *
+from src.util.auth import *
+
 model = None
 
 @app.route('/stream_feed')
@@ -57,26 +67,54 @@ def stream():
 def video(video_name):
     return render_template('video.html',vid_name=video_name)
 
+
+### START SYSTEM
+@app.route('/start/<device_id>', methods=["GET"])
+@token_required
+def start(user_info,device_id):
+    if request.method == "GET":
+        lanes = l.get_config_lst(log)
+        if lanes.code == CODE_EMPTY:
+            return ApiResponse(message=lanes.message,status=False), status.HTTP_400_BAD_REQUEST
+        if lanes.code != CODE_DONE:
+            return ApiResponse(message=lanes.message,status=False), status.HTTP_500_INTERNAL_SERVER_ERROR
+        get_lane_properties(lanes,log)
+        device = d.get_device_by_id(device_id,log)
+        if device.code ==CODE_EMPTY:
+            return ApiResponse(message=device.message,status=False), status.HTTP_400_BAD_REQUEST
+        if device.code != CODE_DONE:
+            return ApiResponse(message=device.message,status=False), status.HTTP_500_INTERNAL_SERVER_ERROR
+        if device['type'] != 'camera':
+            return ApiResponse(message='Device must be camera',status=False), status.HTTP_400_BAD_REQUEST
+        model = LisencePlate()
+        thread = Thread(target=gen_frame,args=(device,model,log))
+        thread.setDaemon(True)
+        thread.start()
+
+
 ### HEALTH CHECK
 @app.route('/system/cpu', methods=["GET"])
-def cpu_info():
+@token_required
+def cpu_info(user_info):
     if request.method == "GET":
         res = cpu_check(log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
 
 @app.route('/system/gpu', methods=["GET"])
-def gpu_info():
+@token_required
+def gpu_info(user_info):
     if request.method == "GET":
         res = gpu_check(log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
 
 ### DEVICE MANAGEMENT MODULE
 @app.route('/device', methods=["POST"])
-def add_devices():
+@token_required
+def add_devices(user_info):
     if request.method == "POST":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
@@ -87,23 +125,25 @@ def add_devices():
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = d.creates(device,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_201_CREATED
 
 
 @app.route('/device/<device_id>', methods=["GET"])
-def get_devices(device_id):
+@token_required
+def get_devices(user_info,device_id):
     if request.method == "GET":
         if not device_id:
             return ApiResponse(message="device id cannot empty!!"), status.HTTP_400_BAD_REQUEST
         res = d.get_device(device_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
 
 @app.route('/device/<device_id>', methods=["PATCH"])
-def update_device(device_id):
+@token_required
+def update_device(user_info,device_id):
     if request.method == "PATCH":
         if not device_id:
             return ApiResponse(message="device id cannot empty!!"), status.HTTP_400_BAD_REQUES
@@ -112,14 +152,15 @@ def update_device(device_id):
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
         device_info = json_reg['device']
         res = d.edit_device(device_id,device_info,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,data=res.data,status=True), status.HTTP_200_OK
 
 ### CONFIG MANAGEMENT MODULE
 
 @app.route('/configs/common')
-def config_update():
+@token_required
+def add_config(user_info):
     if request.method == "POST":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
@@ -132,20 +173,22 @@ def config_update():
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = c.creates(device_id,data_video,data_stream,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,status=True), status.HTTP_201_CREATED
 
 @app.route('/configs/common')
-def get_config():
+@token_required
+def get_config(user_info):
     if request.method == "GET":
         res = c.get_config(log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False),status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,data=res),status.HTTP_200_OK
 
 @app.route('/configs/common')
-def get_config():
+@token_required
+def update_config(user_info):
     if request.method == "PATCH":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
@@ -159,13 +202,14 @@ def get_config():
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = c.updates(config_id,device_id,data_video,data_stream,log)
-        if res is not CODE_DONE:
+        if res != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,status=True), status.HTTP_200_OK        
 
 
 @app.route('/configs/lanes')
-def create_lanes():
+@token_required
+def create_lanes(user_info):
     if request.method == "POST":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
@@ -177,20 +221,22 @@ def create_lanes():
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = l.creates(lanes,device_id,log)
-        if res is not CODE_DONE:
+        if res != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,status=True), status.HTTP_201_CREATED
 
 @app.route('/configs/lanes')
-def get_lanes():
+@token_required
+def get_lanes(user_info):
     if request.method == "GET":
         res = l.get_config_lst(log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False),status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,data=res),status.HTTP_200_OK
 
 @app.route('/configs/lanes')
-def update_lanes():
+@token_required
+def update_lanes(user_info):
     if request.method == "PATCH":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
@@ -202,20 +248,142 @@ def update_lanes():
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = l.updates(lanes,device_id,log)
-        if res is not CODE_DONE:
+        if res != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,status=True), status.HTTP_200_OK
 
 @app.route('/configs/lanes/<lane_id>')
-def delete_lane(lane_id):
+@token_required
+def delete_lane(user_info,lane_id):
     if request.method == "GET":
         if lane_id is None:
             return ApiResponse(message="lane id cannot Null"), status.HTTP_400_BAD_REQUEST
         res = l.delete(lane_id)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,status=False), status.HTTP_400_BAD_REQUEST
         return ApiResponse(message=res.message,status=True), status.HTTP_200_OK
 
+### USER MANAGEMNT MODULE
+@app.route('/login', methods =['POST'])
+def login():
+    if request.method == "POST":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        name = json_reg['name']
+        password = json_reg['password']
+        valid = ValidateLogin(name=name,password=password)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        user = u.get_user_by_name(name,log)
+        if user.code == CODE_EMPTY:
+            return ApiResponse(message=user.message,data = None), status.HTTP_401_UNAUTHORIZED
+        if user.code != CODE_DONE:
+            return ApiResponse(message=user.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        # role = u.get_user_roles(user['id'],log)
+        payload = {
+            "role": user.data['role'],
+            "user_id" : user.data['id'],
+            "exp" :datetime.now() + timedelta(seconds = int(os.environ['ACCESS_TOKEN_TTL']))
+            }
+        pass_check = compare_password(user.data['hash_password'],password,log)
+        if pass_check.code == CODE_FAIL:
+            return ApiResponse(message=user.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        if pass_check.code == CODE_UNAUTHORIZE:
+            return ApiResponse(message=user.message,data = None), status.HTTP_401_UNAUTHORIZED
+        ok,token = generate_jwt_token({'role': 'payload', 'test': 'test', 'exp': 1633757045},app.config['JWT_SECRET'],log)
+        if not ok:
+            return ApiResponse(message="Cannot generate token",data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        return ApiResponse(message="Login successful",data=token,success= True), status.HTTP_200_OK
+
+@app.route('/user/update_role', methods =['POST'])
+@token_required
+def update_user_role(user_info):
+    if request.method == "POST":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        user_id = json_reg['user_id']
+        role = json_reg['role']
+        valid = ValidateRoleInfo(user_id=user_id,role=role)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        res = update_user_role(user_id,role,log)
+        if res.code == CODE_EMPTY:
+            return ApiResponse(message=res.message,data = None), status.HTTP_404_NOT_FOUND
+        if res.code != CODE_DONE:
+            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        return ApiResponse(message=res.message), status.HTTP_200_OK
+
+@app.route('/user/update_password', methods =['POST'])
+@token_required
+def update_user_password(user_info):
+    if request.method == "POST":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        user = u.get_user_by_id(user_info['user_id'],log)
+        user_id = None
+        if user.data['role'] == ADMIN_ROLE:
+            user_id = json_reg['user_id']
+            password  = json_reg['password']
+        else:
+            password  = json_reg['password']
+            user_id = user.data['id']
+        valid = ValidateLogin(name=user_id,password=password)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        ok,err = validate_password(password,log)
+        if not ok:
+            return ApiResponse(message=err), status.HTTP_400_BAD_REQUEST
+        res = u.update_user_password(user_id,password,log)
+        if res.code ==CODE_EMPTY:
+            return ApiResponse(message=res.message,data = None), status.HTTP_404_NOT_FOUND
+        if res.code != CODE_DONE:
+            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        return ApiResponse(message=res.message), status.HTTP_200_OK
+
+@app.route('/user/add_user', methods =['POST'])
+@token_required
+def add_user(user_info):
+    if request.method == "POST":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        user_name = json_reg['name']
+        user_role = json_reg['role']
+        password  = json_reg['password']
+        valid = ValidateRegister(username=user_name,password=password,role = user_role)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        ok,err = validate_password(password,log)
+        if not ok:
+            return ApiResponse(message=err), status.HTTP_401_UNAUTHORIZED
+        res = u.add_new_user(user_name,password,user_role,log)
+        if res.code != CODE_DONE:
+            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        return ApiResponse(message=res.message), status.HTTP_200_OK
+
+@app.route('/user/get_users', methods =['POST'])
+@token_required
+def get_users(user_info):
+    if request.method == "GET":
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        user = u.get_user_by_id(user_info['user_id'],log)
+        if user.data['role'] != ADMIN_ROLE:
+            return ApiResponse(message='Dont have permission'), status.HTTP_406_NOT_ACCEPTABLE
+        res = u.get_users(log)
+        if res.code != CODE_DONE:
+            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        return ApiResponse(message=res.message,data=res.data), status.HTTP_200_OK
+
+### SEARCH MODULE
 @app.route('/search', methods=["POST"])
 def search_in_range():
     log.info('Starting Process....')
@@ -230,7 +398,7 @@ def search_in_range():
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = search_by_time(start_time,end_time,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -243,12 +411,12 @@ def search_by_id(device_id):
         if device_id is None:
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_id(device_id,log)
-        if valid.code is not CODE_DONE:
+        if valid.code != CODE_DONE:
             return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if valid.data is None:
             return ApiResponse(message='The device id not valid'), status.HTTP_400_BAD_REQUEST
         res = search_vehicle_by_id(device_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -261,12 +429,12 @@ def get_video_list(device_id):
         if device_id is None:
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_id(device_id,log)
-        if valid.code is not CODE_DONE:
+        if valid.code != CODE_DONE:
             return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if valid.data is None:
             return ApiResponse(message='The device id not valid'), status.HTTP_400_BAD_REQUEST         
         res = get_list_video_by_device_id(device_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -279,12 +447,12 @@ def get_video(device_id,video_id):
         if device_id is None:
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_id(device_id,log)
-        if valid.code is not CODE_DONE:
+        if valid.code != CODE_DONE:
             return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if valid.data is None:
             return ApiResponse(message='The device id not valid'), status.HTTP_400_BAD_REQUEST
         res = search_video_by_id(video_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -299,12 +467,12 @@ def get_video_by_tracking(device_id,tracking_id):
         if device_id is None:
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_id(device_id,log)
-        if valid.code is not CODE_DONE:
+        if valid.code != CODE_DONE:
             return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if valid.data is None:
             return ApiResponse(message='The device id not valid'), status.HTTP_400_BAD_REQUEST
         res = get_video_by_tracking_id(tracking_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -320,12 +488,12 @@ def get_detect_by_tracking_id(device_id,tracking_id):
             log.info("Device is invalid!!")
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_id(device_id,log)
-        if valid.code is not CODE_DONE:
+        if valid.code != CODE_DONE:
             return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if valid.data is None:
             return ApiResponse(message='The device id not valid'), status.HTTP_400_BAD_REQUEST
         res = get_detect_result_by_tracking(tracking_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -339,12 +507,12 @@ def get_detect_by_vehicle_id(vehicle_id):
             log.info("Device is invalid!!")
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_vehicle_id(vehicle_id,log)
-        if valid.code is not CODE_DONE:
+        if valid.code != CODE_DONE:
             return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if valid.data is None:
             return ApiResponse(message='The vehicle id not valid'), status.HTTP_400_BAD_REQUEST
         res = v.get_detect_result_by_vehicle_id(vehicle_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -358,7 +526,7 @@ def get_vehicle_info_by_lp(vehicle_id):
             log.info("Device is invalid!!")
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_vehicle_id(vehicle_id,log)
-        if valid.code is not CODE_DONE:
+        if valid.code != CODE_DONE:
             return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if valid.data is None:
             return ApiResponse(message='The vehicle id not valid'), status.HTTP_400_BAD_REQUEST
@@ -366,7 +534,7 @@ def get_vehicle_info_by_lp(vehicle_id):
         if license_plate is None:
             return ApiResponse(message='The license plate not valid'), status.HTTP_412_PRECONDITION_FAILED
         res = v.get_vehicle_information_by_license_plate(license_plate,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
@@ -418,7 +586,7 @@ def downoad(video_id):
 def downoad_video(video_id):
      if request.method == "GET":
         res = download_file(video_id,log)
-        if res.code is not CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         video_path = res.data 
         log.info(video_path)
@@ -429,17 +597,17 @@ def too_large(e):
     return "File is too large", 413
 
 if __name__ == '__main__':
-    model = LisencePlate()
-    with open('./src/config.json') as f:
-        data = json.load(f)
-    devices = data['Device']
+    # model = LisencePlate()
+    # with open('./src/config.json') as f:
+    #     data = json.load(f)
+    # devices = data['Device']
     
-    for device in devices:
-        # log.info("passss hereee1")
-        d = Device(device['type'],device['group'],device['location'],device['region'],device['url'])
-        d.add(log)
-        thread = Thread(target=gen_frame,args=(d,model,log))
-        thread.setDaemon(True)
-        thread.start()
-    log.info("passss hereee1:{}".format(len(devices)))
+    # for device in devices:
+    #     # log.info("passss hereee1")
+    #     d = Device(device['type'],device['group'],device['location'],device['region'],device['url'])
+    #     d.add(log)
+    #     thread = Thread(target=gen_frame,args=(d,model,log))
+    #     thread.setDaemon(True)
+    #     thread.start()
+    # log.info("passss hereee1:{}".format(len(devices)))
     app.run(host="0.0.0.0", port=80, use_reloader=False)

@@ -11,47 +11,6 @@ from flask import Response, jsonify, Flask
 from datetime import datetime
 from src.const import *
 from sqlalchemy.ext.declarative import DeclarativeMeta
-
-@dataclass_json
-@dataclass
-class ValidateDevce:
-    data: json
-
-    def validate(self) -> [bool,str]:
-        if not self.data:
-            return False, 'Invalid data'
-        return True, ''
-
-@dataclass_json
-@dataclass
-class ValidateData:
-    start_time: datetime
-    end_time: datetime
-    def validate(self) -> [bool,str]:
-        if not self.start_time or not self.end_time:
-            return False, 'Invalid data'
-        return True, ''
-
-@dataclass_json
-@dataclass
-class ValidateConfig:
-    stream : json
-    videos : json
-    device_id: str
-    def validate(self)-> [bool,str]:
-        if not self.stream or not self.videos or not self.device_id:
-            return False, 'Invalid config info'
-        return True, ''
-
-@dataclass_json
-@dataclass
-class ValidateLanes:
-    lanes : json
-    device_id : str
-    def validate(self)-> [bool,str]:
-        if not self.lanes or not self.device_id:
-            return False, 'Invalid lanes info'
-        return True, ''
 @dataclass_json
 @dataclass
 class DataReponse:
