@@ -1,14 +1,15 @@
 from src import db
-from src.util.generate_random import generate_random
+
 import datetime
+import uuid
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.sql import func
 
 class Recognize(db.Model):
     __tablename__ = 'Recognize'
 
-    id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
-    tracking_id = db.Column(db.String(24),db.ForeignKey('Tracks.id',ondelete='cascade'),nullable = False)
+    id = db.Column(db.String(50), unique = True,primary_key = True,nullable = False)
+    tracking_id = db.Column(db.String(50),db.ForeignKey('Tracks.id',ondelete='cascade'),nullable = False)
     lisence_pate = db.Column(db.String(20),nullable = True,unique = False)
     crop_image = db.Column(db.String(120),nullable = False,unique = True)
     created_at = db.Column(db.DateTime(), default=datetime.datetime.now())
@@ -16,7 +17,7 @@ class Recognize(db.Model):
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
     def __init__(self,tracking_id,crop_image):
-        self.id = generate_random(24)
+        self.id = str(uuid.uuid4())
         self.tracking_id = tracking_id
         self.crop_image = crop_image
 

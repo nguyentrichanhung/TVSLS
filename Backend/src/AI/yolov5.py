@@ -5,7 +5,7 @@ from threading import Thread
 import time
 from datetime import datetime
 from pathlib import Path
-sys.path.insert(0, '/home/goback-research/LPR/yolov5')
+# sys.path.insert(0, '/home/goback-research/LPR/yolov5')
 import cv2
 import torch
 import torch.backends.cudnn as cudnn

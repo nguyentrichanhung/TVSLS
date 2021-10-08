@@ -1,12 +1,13 @@
 from src import db
-from src.util.generate_random import generate_random
+
 import datetime
+import uuid
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.sql import func
 class Vehicle(db.Model):
     __tablename__ = 'Vehicles'
 
-    id = db.Column(db.String(24), unique = True,primary_key = True,nullable = False)
+    id = db.Column(db.String(50), unique = True,primary_key = True,nullable = False)
     license_plate = db.Column(db.String(30),nullable=False,unique = True)
     type = db.Column(db.String(100), nullable= False,unique = False)
     status = db.Column(db.String(100),nullable = False)
@@ -16,7 +17,7 @@ class Vehicle(db.Model):
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
     def __init__(self,license_plate,type,status,violation_type):
-        self.id = generate_random(24)
+        self.id = str(uuid.uuid4())
         self.license_plate = license_plate
         self.type = type
         self.status = status

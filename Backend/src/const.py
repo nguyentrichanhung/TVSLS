@@ -3,6 +3,7 @@ CODE_FAIL = 1001
 CODE_DATABASE_FAIL = 1002
 CODE_PROCESSING = 1003
 CODE_EMPTY = 1004
+CODE_UNAUTHORIZE = 1005
 
 
 ### Root Folder
@@ -32,3 +33,9 @@ CHANNELS = {
     '1' : 'cam0_1',
     '2' : 'cam0_2'
 }
+
+
+### Roles
+ADMIN_ROLE = 'admin'
+NORMAL_ROLE = 'visitor'
+OFFICER_ROLE = 'offcier'

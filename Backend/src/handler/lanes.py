@@ -30,6 +30,8 @@ def get_config_lst(log):
         data = db.session.query(LaneProperty).all()
         db.session.close()
         res_dict = row2dict(data)
+        if len(res_dict) == 0:
+            return DataReponse(data = None,message='Config not setup yet!!',code = CODE_EMPTY)
         return DataReponse(data = res_dict,message='Successful')
     except SQLAlchemyError as e:
         db.session.close()

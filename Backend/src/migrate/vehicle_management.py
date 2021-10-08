@@ -1,6 +1,6 @@
 from src import db
 import datetime
-from src.util.generate_random import generate_random
+
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.sql import func
 
@@ -8,8 +8,8 @@ class VM(db.Model):
     __tablename__ = 'vehicle_management'
 
     id = db.Column(db.Integer, unique = True,primary_key = True,nullable = False,autoincrement = True)
-    device_id = db.Column(db.String(24),db.ForeignKey('Devices.id',ondelete='cascade'),nullable = True)
-    vehicle_id = db.Column(db.String(24),db.ForeignKey('Vehicles.id',ondelete='cascade'),nullable = True)
+    device_id = db.Column(db.String(50),db.ForeignKey('Devices.id',ondelete='cascade'),nullable = True)
+    vehicle_id = db.Column(db.String(50),db.ForeignKey('Vehicles.id',ondelete='cascade'),nullable = True)
     created_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)

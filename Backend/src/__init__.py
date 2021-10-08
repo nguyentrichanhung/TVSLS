@@ -34,6 +34,7 @@ app.config.update({
     'SQLALCHEMY_POOL_SIZE': None,
     'SQLALCHEMY_POOL_TIMEOUT': None
 })
+app.config['JWT_SECRET'] = 'Goback-TVS'
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.png', '.gif','.mp4','.webm']
 convention = {
@@ -58,6 +59,10 @@ from src.migrate.track import Track
 from src.migrate.video import Video
 from src.migrate.config import Config
 from src.migrate.lane_properties import LaneProperty
+from src.migrate.users import User
+# from src.migrate.roles import Role
+# from src.migrate.user_roles import UserRole
+from src.migrate.device_managers import DeviceManager
 migrate = Migrate(app, db)
 
 # use the modified encoder class to handle ObjectId & datetime object while jsonifying the response.
