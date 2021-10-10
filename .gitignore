@@ -146,7 +146,6 @@ build/
 *.mp4
 *.avi
 *.so
-*.txt
 
 #Storage file
 *.jpg
