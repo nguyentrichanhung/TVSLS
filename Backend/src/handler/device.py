@@ -23,7 +23,7 @@ def creates(device,log):
 
 def get_cameras(log):
     try:
-        devices = db.session.query(Device).filter_by(Device.type == 'camera').all()
+        devices = db.session.query(Device).filter(Device.type == 'camera').all()
         db.session.close()
         if not devices:
             return DataReponse(message= 'Invalid device_id',code = CODE_EMPTY)
@@ -38,7 +38,7 @@ def get_cameras(log):
 
 def get_device_by_id(device_id,log):
     try:
-        device = db.session.query(Device).filter_by(Device.id == device_id).first()
+        device = db.session.query(Device).filter(Device.id == device_id).first()
         db.session.close()
         if not device:
             return DataReponse(message= 'Invalid device_id',code = CODE_EMPTY)
@@ -55,7 +55,7 @@ def get_device_by_id(device_id,log):
 
 def edit_device(device_id,device_info,log):
     try:
-        device = db.session.query(Device).filter_by(Device.id == device_id).first()
+        device = db.session.query(Device).filter(Device.id == device_id).first()
         db.session.close()
         if not device:
             return DataReponse(message= 'Invalid device_id',code = CODE_EMPTY)

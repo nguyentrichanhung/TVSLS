@@ -9,11 +9,12 @@ from src.migrate.video import  Video
 from src import db
 
 class KeyClipWriter:
-    def __init__(self, bufSize=64, timeout=1.0):
+    def __init__(self, bufSize=64, timeout=1.0,resolution=(1280,720)):
         # store the maximum buffer size of frames to be kept
         # in memory along with the sleep timeout during threading
         self.bufSize = bufSize
         self.timeout = timeout
+        self.resolution = resolution
         # initialize the buffer of frames, queue of frames that
         # need to be written to file, video writer, writer thread,
         # and boolean indicating whether recording has started or not
@@ -37,7 +38,7 @@ class KeyClipWriter:
         # to the video file
         self.recording = True
         self.writer = cv2.VideoWriter(outputPath, fourcc, fps,
-            (self.frames[0].shape[1], self.frames[0].shape[0]), True)
+            self.resolution, True)
         self.Q = Queue()
         current_time = datetime.now()
         record = Video(device_id,outputPath,current_time,None)
@@ -63,6 +64,7 @@ class KeyClipWriter:
                 # grab the next frame in the queue and write it
                 # to the video file
                 frame = self.Q.get()
+                frame = cv2.resize(frame,self.resolution)
                 self.writer.write(frame)
             # otherwise, the queue is empty, so sleep for a bit
             # so we don't waste CPU cycles

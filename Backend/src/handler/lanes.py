@@ -5,6 +5,7 @@ from src.service.response import *
 from src.const import *
 from src.service.response import new_alchemy_encoder,row2dict
 
+import  datetime
 
 def creates(data,device_id,log):
     try:
@@ -12,7 +13,7 @@ def creates(data,device_id,log):
             return DataReponse(message= 'Invalid lane properties',code = CODE_EMPTY)
         lane_lst = []
         for k,v in data.items():
-            lane_lst.append(LaneProperty(device_id,v['name'],v['vehicle_type'],v['speed_limit'],v['direction'],v['points']))
+            lane_lst.append(LaneProperty(device_id,v['name'],v['vehicle_properties'],v['direction'],v['points']))
         db.session.add_all(lane_lst)
         db.session.commit()
         return DataReponse(message= 'Insert successfully!',code = CODE_DONE)
@@ -47,13 +48,12 @@ def updates(data,device_id,log):
         if len(data) == 0:
             return DataReponse(message= 'Invalid update info',code = CODE_EMPTY)
         for k,v in data.items():
-            lane = db.session.query(LaneProperty).filter_by(LaneProperty.id ==k).first()
+            lane = db.session.query(LaneProperty).filter(LaneProperty.id ==k).first()
             if lane is None:
                 return DataReponse(message= 'Not found lane information with id: {}'.format(k),code = CODE_EMPTY)
             lane.device_id = device_id
             lane.name = v['name']
-            lane.vehicle_type = v['vehicle_type']
-            lane.speed_limit = v['speed_limit']
+            lane.vehicle_properties = v['vehicle_properties']
             lane.direction = v['direction']
             lane.points = v['points']
             lane.updated_at = datetime.datetime.now()

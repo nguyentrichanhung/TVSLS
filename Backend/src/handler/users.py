@@ -71,7 +71,7 @@ def update_user_role(user_id,name,log):
         user = db.session.query(User).filter(User.id == user_id).first()
         if user:
             user.role = name
-            user.updated_at = datetime.datetime.now()
+            user.updated_at = datetime.now()
             db.session.commit()
             return DataReponse(message= 'Update successfully!',code = CODE_DONE)
         return DataReponse(message= 'User not exist!',code = CODE_EMPTY)
@@ -89,7 +89,7 @@ def update_user_password(user_id,password,log):
         user = db.session.query(User).filter(User.id == user_id).first()
         if user:
             user.password = generate_password_hash(password)
-            user.updated_at = datetime.datetime.now()
+            user.updated_at = datetime.now()
             db.session.commit()
             return DataReponse(message= 'Update successfully!',code = CODE_DONE)
         return DataReponse(message= 'User not exist!',code = CODE_EMPTY)
