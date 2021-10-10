@@ -33,3 +33,8 @@ sudo rm -rf /postgres-data
 - backend port : 5000
 
 - database port : 5432
+
+------
+# ```Install Model```
+
+You can download the model with attach link here: [Yolov5 + Deep_sort Model](https://drive.google.com/drive/folders/1CMBAeir3w_nchYcvYa4HvJMK65smjslO?usp=sharing)
