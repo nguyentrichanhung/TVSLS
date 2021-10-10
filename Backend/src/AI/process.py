@@ -49,8 +49,10 @@ def get_lane_properties(lanes,log):
     lane_lst = lanes
     log.info('pass value success')
 
-def gen_frame(device,model,log):
-    kcw = KeyClipWriter(bufSize=100)
+def gen_frame(device,model,stream_config,video_config,log):
+    fps = video_config['fps']
+    dbe = video_config['dbe']
+    kcw = KeyClipWriter(bufSize=fps*dbe,resolution=(video_config['resolution']['width'],video_config['resolution']['height']))
     mlp = LisencePlate(weights='./src/AI/models/lpr-spcs.pt')
     vr = Car_Classifier(num_cls=19, model_path='./src/AI/models/epoch_39.pth', device='cuda')
     freq = cv2.getTickFrequency()
@@ -58,7 +60,7 @@ def gen_frame(device,model,log):
     deepsort = model.deepsort
     meta_data = device['meta_data']
     stream_url = "rtsp://{}:{}@{}:{}/{}".format(meta_data['user'],
-                    meta_data['password'],meta_data['ip'],meta_data['rtsp_port'],meta_data['channel'])
+                    meta_data['password'],meta_data['ip'],meta_data['rtsp_port'],stream_config['channel'])
     # videostream  = VideoStream(device.stream_url,resolution=(1280,720),framerate=60)
     # videostream.start()
     # time.sleep(1)
@@ -73,7 +75,7 @@ def gen_frame(device,model,log):
         thread.start()
         consecFrames = 0
         while True:
-            videostream  = VideoStream(stream_url,resolution=(meta_data['resolution']['width'],meta_data['resolution']['height']),framerate=60)
+            videostream  = VideoStream(stream_url,resolution=(stream_config['resolution']['width'],stream_config['resolution']['height']),framerate=60)
             videostream.start()
             time.sleep(1)
             if not videostream:
@@ -87,10 +89,10 @@ def gen_frame(device,model,log):
                     log.error("!!! Couldn't read frame!")
                     log.info("Try to reconnect!")
                     break
-                current_frame = cv2.resize(current_frame, (meta_data['resolution']['width'],meta_data['resolution']['height'] ))
+                current_frame = cv2.resize(current_frame, (stream_config['resolution']['width'],stream_config['resolution']['height'] ))
                 mask = np.zeros(current_frame.shape, np.uint8)
                 for lane in lane_lst:
-                    pts = lane['points']['p']
+                    pts = lane['points']
                     points = np.array(pts, np.int32)
                     points = points.reshape((-1, 1, 2))
                     mask = cv2.polylines(mask, [points], True, (255, 255, 255), 2)
@@ -132,7 +134,7 @@ def gen_frame(device,model,log):
                             p = "{}/{}.webm".format(video_path,
                                 timestamp.strftime("%Y%m%d-%H%M%S"))
                             kcw.start(p, cv2.VideoWriter_fourcc(*'vp80'),
-                                20,device['id'],log)
+                                fps,device['id'],log)
                         except  Exception as e:
                             log.info(e)
                 if updateConsecFrames:

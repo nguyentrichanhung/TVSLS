@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from src.service.response import *
 from src.const import *
 from src.service.response import new_alchemy_encoder,row2dict
+import  datetime
 
 def validate(data_video,data_stream):
     video_err = ''
@@ -12,15 +13,12 @@ def validate(data_video,data_stream):
         if k == 'resolution':
             if len(v) < 2 or len(v) > 2:
                 video_err = video_err + 'Invalid resolution format'
-        elif k == 'speed_limit':
-            if type(v) is not int:
-                video_err = video_err + '-' + ' Invalid speed limit format'
         elif k == 'fps':
             if type(v) is not int:
                 video_err = video_err + '-' + ' Invalid fps format'
         elif k == 'dbe':
             if type(v) is not int:
-                video_err = video_err + '-' + ' Invalid fps format'
+                video_err = video_err + '-' + ' Invalid dbe format'
             if v > MAX_DURATION:
                 video_err = video_err + '-' + ' duration cannot over 7 seconds'
         elif k == 'extension':
@@ -32,7 +30,7 @@ def validate(data_video,data_stream):
             if len(v) < 2 or len(v) > 2:
                 stream_err = stream_err + 'Invalid resolution format'
         if k == 'channel':
-            if v not in CHANNELS:
+            if v not in CHANNELS.values():
                 stream_err = stream_err + '-' + ' Invalid channel'
 
     return video_err,stream_err

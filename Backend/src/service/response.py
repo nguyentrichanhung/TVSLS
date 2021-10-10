@@ -79,11 +79,11 @@ def row2dict(row):
         for r in row:
             dd = {}
             for column in r.__table__.columns:
-                dd[column.name] = str(getattr(r, column.name))
+                dd[column.name] = getattr(r, column.name)
             d.append(dd)
         return d
     d = {}
     for column in row.__table__.columns:
-        d[column.name] = str(getattr(row, column.name))
+        d[column.name] = getattr(row, column.name)
 
     return d
