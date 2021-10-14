@@ -30,7 +30,7 @@ def validate(data_video,data_stream):
             if len(v) < 2 or len(v) > 2:
                 stream_err = stream_err + 'Invalid resolution format'
         if k == 'channel':
-            if v not in CHANNELS.values():
+            if v not in CHANNELS_PTZ.values() and v not in CHANNELS_HUCOMS.values():
                 stream_err = stream_err + '-' + ' Invalid channel'
 
     return video_err,stream_err

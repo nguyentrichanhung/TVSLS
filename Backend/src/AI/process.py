@@ -206,29 +206,27 @@ def setup_cameras(log):
 
 def process_data(device,deepsort,kcw,mlp,vr,log):
     while True:
-        # timeout_start = time.time()
+        timeout_start = time.time()
         response = []
-        # while time.time() < timeout_start + 0.2:
-        #     tracking = tracking_data.get()
-        #     if tracking is None:
-        #         continue
-        #     track_output = deepsort.update(tracking['xywhs'].cpu(), tracking['confs'].cpu(), 
-        #                     tracking['clss'], tracking['img'])
-        #     if len(track_output) > 0:
-        #         for j, (output, conf) in enumerate(zip(track_output, tracking['confs'])):
-        #             id = output[4]
-        #             cls = output[5]
+        while time.time() < timeout_start + 0.2:
+            tracking = tracking_data.get()
+            if tracking is None:
+                continue
+            track_output = deepsort.update(tracking['xywhs'].cpu(), tracking['confs'].cpu(), 
+                            tracking['clss'], tracking['img'])
+            if len(track_output) > 0:
+                for j, (output, conf) in enumerate(zip(track_output, tracking['confs'])):
+                    id = output[4]
+                    cls = output[5]
 
-        #             c = int(cls)  # integer class
-        #             track_result = {
-        #                     "device_id" : device.id,
-        #                     "video_id" : kcw.video_id,
-        #                     "tracking_number" : int(id.item()),
-        #                     "vehicle_id" : None,
-        #                     "start_time" : datetime.now(),
-        #                     "end_time" : datetime.now()
-        #                 }
-        #             tracking = create_or_update(track_result,log)
+                    c = int(cls)  # integer class
+                    track_result = {
+                        "video_id": kcw.video_id,
+                        "tracking_number": int(id.item()),
+                        "start_time": datetime.now(),
+                        "end_time": datetime.now()
+                    }
+                    tracking = t.create_or_update(track_result, log)
         data = tracking_data.get()
         if data is None:
             continue
@@ -335,7 +333,7 @@ def recognize_lp(frame,mlp,count,tracking_id,log):
 
 
 async def handle_message(data,log):
-    uri = "ws://192.168.0.5:8000"
+    uri = "ws://192.168.0.31:8000"
     async with websockets.connect(uri) as websocket:
         for d in data :
             await websocket.send(json.dumps(d))

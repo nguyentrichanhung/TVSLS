@@ -233,6 +233,11 @@ def create_lanes(user_info):
         ok,msg = valid.validate()
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        device = d.get_device_by_id(device_id,log)
+        if device.code == CODE_EMPTY:
+            return ApiResponse(message=device.message), status.HTTP_400_BAD_REQUEST
+        if device.code != CODE_DONE:
+            return ApiResponse(message=device.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         res = l.creates(lanes,device_id,log)
         if res != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST

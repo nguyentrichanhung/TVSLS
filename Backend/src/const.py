@@ -28,10 +28,15 @@ MAX_DURATION = 7
 
 ### Stream
 
-CHANNELS = {
+CHANNELS_PTZ = {
     '0' : 'cam0_0',
     '1' : 'cam0_1',
     '2' : 'cam0_2'
+}
+CHANNELS_HUCOMS = {
+    '0' : 'stream0',
+    '1' : 'stream1',
+    '2' : 'stream2'
 }
 
 
