@@ -1,8 +1,7 @@
 import os
 import logging
 import sys
-import base64
-import json
+from time import sleep
 
 from datetime import datetime, timedelta
 from threading import Thread
@@ -11,15 +10,22 @@ from  werkzeug.security import generate_password_hash, check_password_hash
 
 
 
+# logging.basicConfig(level=logging.INFO,
+#                     format="%(asctime)s - [%(levelname)s] - %(message)s",
+#                     datefmt='%m-%d %H:%M',
+#                     filename='./src/logs/violate.log',
+#                     filemode='w')
 
+# In case debug, Please Comment 1 line below
+# logging.getLogger('werkzeug').disabled = True
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
-
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(filename)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 log.addHandler(handler)
+
 
 
 # flask imports
@@ -49,8 +55,15 @@ import src.handler.users as u
 
 from src.util.valid import *
 from src.util.auth import *
+from src.util.log import *
 
 model = None
+
+fileHandler = logging.FileHandler(filename="{0}/{1}.log".format(LOG_FOLDER, 'violate'),mode='w')
+fileHandler.setLevel(logging.INFO)
+logFormatter = logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s")
+fileHandler.setFormatter(logFormatter)
+log.addHandler(fileHandler)
 
 @app.route('/stream_feed')
 def stream_feed():
@@ -91,7 +104,7 @@ def start(user_info,device_id):
             return ApiResponse(message=config.message,success=False), status.HTTP_400_BAD_REQUEST
         if config.code != CODE_DONE:
             return ApiResponse(message=config.message,success=False), status.HTTP_500_INTERNAL_SERVER_ERROR
-        log.info(config.data)
+        log.debug(config.data)
         # data =json.loads(config.data['config_data'])
         stream_config = config.data['config_data']['stream']
         if len(stream_config.keys()) == 0:
@@ -129,6 +142,7 @@ def gpu_info(user_info):
 @token_required
 def add_devices(user_info):
     if request.method == "POST":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -139,7 +153,9 @@ def add_devices(user_info):
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = d.creates(device,log)
         if res.code != CODE_DONE:
+            
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Created",user_info['role'],"Device setup",ip_add))
         return ApiResponse(message=res.message,data=res.data,success=True), status.HTTP_201_CREATED
 
 
@@ -147,17 +163,20 @@ def add_devices(user_info):
 @token_required
 def get_devices(user_info,device_id):
     if request.method == "GET":
+        ip_add = request.remote_addr
         if not device_id:
             return ApiResponse(message="device id cannot empty!!"), status.HTTP_400_BAD_REQUEST
         res = d.get_device(device_id,log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Get info",user_info['role'],"Device setup",ip_add))
         return ApiResponse(message=res.message,data=res.data,success=True), status.HTTP_200_OK
 
 @app.route('/device/<device_id>', methods=["PATCH"])
 @token_required
 def update_device(user_info,device_id):
     if request.method == "PATCH":
+        ip_add = request.remote_addr
         if not device_id:
             return ApiResponse(message="device id cannot empty!!"), status.HTTP_400_BAD_REQUES
         json_reg = request.get_json(force=True,silent=True)
@@ -167,6 +186,7 @@ def update_device(user_info,device_id):
         res = d.edit_device(device_id,device_info,log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Changed",user_info['role'],"Device setup",ip_add))
         return ApiResponse(message=res.message,data=res.data,success=True), status.HTTP_200_OK
 
 ### CONFIG MANAGEMENT MODULE
@@ -175,6 +195,7 @@ def update_device(user_info,device_id):
 @token_required
 def add_config(user_info):
     if request.method == "POST":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -188,21 +209,25 @@ def add_config(user_info):
         res = c.creates(device_id,data_video,data_stream,log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Created",user_info['role'],"Common setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_201_CREATED
 
 @app.route('/configs/common', methods=["GET"])
 @token_required
 def get_config(user_info):
     if request.method == "GET":
+        ip_add = request.remote_addr
         res = c.get_config(log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False),status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Get info",user_info['role'],"Common setup",ip_add))
         return ApiResponse(message=res.message,data=res),status.HTTP_200_OK
 
 @app.route('/configs/common', methods=["PATCH"])
 @token_required
 def update_config(user_info):
     if request.method == "PATCH":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -217,6 +242,7 @@ def update_config(user_info):
         res = c.updates(config_id,device_id,data_video,data_stream,log)
         if res != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Changed",user_info['role'],"Common setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_200_OK        
 
 
@@ -224,6 +250,7 @@ def update_config(user_info):
 @token_required
 def create_lanes(user_info):
     if request.method == "POST":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -241,21 +268,25 @@ def create_lanes(user_info):
         res = l.creates(lanes,device_id,log)
         if res != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Created",user_info['role'],"Lanes setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_201_CREATED
 
 @app.route('/configs/lanes', methods=["GET"])
 @token_required
 def get_lanes(user_info):
     if request.method == "GET":
+        ip_add = request.remote_addr
         res = l.get_config_lst(log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False),status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Get info",user_info['role'],"Lanes setup",ip_add))
         return ApiResponse(message=res.message,data=res),status.HTTP_200_OK
 
 @app.route('/configs/lanes', methods=["PATCH"])
 @token_required
 def update_lanes(user_info):
     if request.method == "PATCH":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -268,23 +299,27 @@ def update_lanes(user_info):
         res = l.updates(lanes,device_id,log)
         if res != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Changed",user_info['role'],"Lanes setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_200_OK
 
 @app.route('/configs/lanes/<lane_id>', methods=["DELETE"])
 @token_required
 def delete_lane(user_info,lane_id):
     if request.method == "GET":
+        ip_add = request.remote_addr
         if lane_id is None:
             return ApiResponse(message="lane id cannot Null"), status.HTTP_400_BAD_REQUEST
         res = l.delete(lane_id)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        log.info(configure_log("Deleted",user_info['role'],"Lanes setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_200_OK
 
 ### USER MANAGEMNT MODULE
 @app.route('/login', methods =['POST'])
 def login():
     if request.method == "POST":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -313,12 +348,14 @@ def login():
         ok,token = generate_jwt_token(payload,app.config['JWT_SECRET'],log)
         if not ok:
             return ApiResponse(message="Cannot generate token",data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        log.info(user_log(user.data['role'],"Login",ip_add))
         return ApiResponse(message="Login successful",data=token,success= True), status.HTTP_200_OK
 
 @app.route('/user/update_role', methods =['POST'])
 @token_required
 def update_user_role(user_info):
     if request.method == "POST":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -333,17 +370,23 @@ def update_user_role(user_info):
             return ApiResponse(message=res.message,data = None), status.HTTP_404_NOT_FOUND
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        log.info(user_log(user_info['role'],"Update role",ip_add))
         return ApiResponse(message=res.message), status.HTTP_200_OK
 
 @app.route('/user/update_password', methods =['POST'])
 @token_required
 def update_user_password(user_info):
     if request.method == "POST":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
-        log.info(user_info)
+        log.debug(user_info)
         user = u.get_user_by_id(user_info['user_id'],log)
+        if user.code == CODE_EMPTY:
+            return ApiResponse(message=user.message), status.HTTP_401_UNAUTHORIZED
+        if user.code != CODE_DONE:
+            return ApiResponse(message=user.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         user_id = None
         if user.data['role'] == ADMIN_ROLE:
             user_id = json_reg['user_id']
@@ -363,12 +406,14 @@ def update_user_password(user_info):
             return ApiResponse(message=res.message,data = None), status.HTTP_404_NOT_FOUND
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        log.info(user_log(user_info['role'],"Changed password",ip_add))
         return ApiResponse(message=res.message), status.HTTP_200_OK
 
 @app.route('/user/add_user', methods =['POST'])
 @token_required
 def add_user(user_info):
     if request.method == "POST":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
@@ -385,33 +430,42 @@ def add_user(user_info):
         res = u.add_new_user(user_name,password,user_role,log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        log.info(user_log(user_info['role'],"Add User",ip_add))
         return ApiResponse(message=res.message), status.HTTP_200_OK
 
 @app.route('/user/get_users', methods =['POST'])
 @token_required
 def get_users(user_info):
     if request.method == "GET":
+        ip_add = request.remote_addr
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
         user = u.get_user_by_id(user_info['user_id'],log)
+        if user.code == CODE_EMPTY:
+            return ApiResponse(message=user.message), status.HTTP_401_UNAUTHORIZED
+        if user.code != CODE_DONE:
+            return ApiResponse(message=user.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         if user.data['role'] != ADMIN_ROLE:
             return ApiResponse(message='Dont have permission'), status.HTTP_406_NOT_ACCEPTABLE
         res = u.get_users(log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        log.info(user_log(user_info['role'],"Get User",ip_add))
         return ApiResponse(message=res.message,data=res.data), status.HTTP_200_OK
 
 ### SEARCH MODULE
 @app.route('/search', methods=["POST"])
 def search_in_range():
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "POST":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
+            log.debug("Access here")
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
         start_time = json_reg['start_time']
         end_time = json_reg['end_time']
+        log.debug("Start time: {} - End time: {}".format(start_time,end_time))
         valid = ValidateData(start_time=start_time,end_time=end_time)
         ok, msg = valid.validate()
         if not ok:
@@ -423,27 +477,9 @@ def search_in_range():
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
         return ApiResponse(message=res.message,data=res.data,success= True), status.HTTP_200_OK
 
-@app.route('/device/<device_id>/vehicle',methods=["GET"])
-def search_by_id(device_id):
-    log.info('Starting Process....')
-    if request.method == "GET":
-        if device_id is None:
-            return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
-        valid = validate_id(device_id,log)
-        if valid.code != CODE_DONE:
-            return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
-        if valid.data is None:
-            return ApiResponse(message='The device id not valid'), status.HTTP_400_BAD_REQUEST
-        res = search_vehicle_by_id(device_id,log)
-        if res.code != CODE_DONE:
-            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
-        if res.data is None :
-            return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
-        return ApiResponse(message=res.message,data=res.data,success= True), status.HTTP_200_OK
-
 @app.route('/device/<device_id>/video',methods=["GET"])
 def get_video_list(device_id):
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "GET":
         if device_id is None:
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
@@ -461,7 +497,7 @@ def get_video_list(device_id):
 
 @app.route('/device/<device_id>/video/<video_id>',methods=["GET"])
 def get_video(device_id,video_id):
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "GET":
         if device_id is None:
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
@@ -481,7 +517,7 @@ def get_video(device_id,video_id):
 
 @app.route('/device/<device_id>/video/<tracking_id>',methods=["GET"])
 def get_video_by_tracking(device_id,tracking_id):
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "GET":
         if device_id is None:
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
@@ -501,10 +537,10 @@ def get_video_by_tracking(device_id,tracking_id):
 
 @app.route('/device/<device_id>/detect/<tracking_id>',methods=["GET"])
 def get_detect_by_tracking_id(device_id,tracking_id):
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "GET":
         if device_id is None:
-            log.info("Device is invalid!!")
+            log.debug("Device is invalid!!")
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_id(device_id,log)
         if valid.code != CODE_DONE:
@@ -520,10 +556,10 @@ def get_detect_by_tracking_id(device_id,tracking_id):
 
 @app.route('/vehicle/<vehicle_id>/detect',methods=["GET"])
 def get_detect_by_vehicle_id(vehicle_id):
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "GET":
         if vehicle_id is None:
-            log.info("Device is invalid!!")
+            log.debug("Device is invalid!!")
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_vehicle_id(vehicle_id,log)
         if valid.code != CODE_DONE:
@@ -539,10 +575,10 @@ def get_detect_by_vehicle_id(vehicle_id):
 
 @app.route('/vehicle/<vehicle_id>/info',methods=["GET"])
 def get_vehicle_info_by_lp(vehicle_id):
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "GET":
         if vehicle_id is None:
-            log.info("Device is invalid!!")
+            log.debug("Device is invalid!!")
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_vehicle_id(vehicle_id,log)
         if valid.code != CODE_DONE:
@@ -563,12 +599,12 @@ def get_vehicle_info_by_lp(vehicle_id):
 
 @app.route('/watch', methods=['POST','GET'])
 def serve_video():
-    log.info('Starting Process....')
+    log.debug('Starting Process....')
     if request.method == "POST":
         json_reg = request.get_json(force=True,silent=True)
         vid_path = json_reg['video_id']
         # vid_path = request.args.get("p")
-        log.info('vid path: {}'.format(vid_path))
+        log.debug('vid path: {}'.format(vid_path))
         resp = make_response(send_file(vid_path, 'video/x-msvideo'))
         resp.headers['Content-Disposition'] = 'inline'
         return resp
@@ -577,7 +613,7 @@ def serve_video():
         video_id = request.args.get("v")
         res = search_video_by_id(video_id,log)
         rec_path = res.data['video_path']
-        log.info('vid path: {}'.format(rec_path))
+        log.debug('vid path: {}'.format(rec_path))
         resp = make_response(send_file(rec_path, 'video/webm'))
         resp.headers['Content-Disposition'] = 'inline'
         return resp
@@ -608,13 +644,31 @@ def downoad_video(video_id):
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         video_path = res.data 
-        log.info(video_path)
+        log.debug(video_path)
         return send_file(video_path, as_attachment= True)
 
 @app.errorhandler(413)
 def too_large(e):
     return "File is too large", 413
 
+### LOG MODULES
+@app.route('/logs')
+@token_required
+def logs(user_info):
+    user = u.get_user_by_id(user_info['user_id'],log)
+    if user.code == CODE_EMPTY:
+        return ApiResponse(message=user.message), status.HTTP_401_UNAUTHORIZED
+    if user.code != CODE_DONE:
+        return ApiResponse(message=user.message), status.HTTP_500_INTERNAL_SERVER_ERROR
+    if user.data['role'] != ADMIN_ROLE:
+        return ApiResponse(message='Dont have permission'), status.HTTP_406_NOT_ACCEPTABLE
+    def generate():
+        with open('./src/logs/violate.log') as f:
+            while True:
+                yield f.read()
+                sleep(1)
+
+    return app.response_class(generate(), mimetype='text/plain')
 if __name__ == '__main__':
     # model = LisencePlate()
     # with open('./src/config.json') as f:
@@ -622,11 +676,11 @@ if __name__ == '__main__':
     # devices = data['Device']
     
     # for device in devices:
-    #     # log.info("passss hereee1")
+    #     # log.debug("passss hereee1")
     #     d = Device(device['type'],device['group'],device['location'],device['region'],device['url'])
     #     d.add(log)
     #     thread = Thread(target=gen_frame,args=(d,model,log))
     #     thread.setDaemon(True)
     #     thread.start()
-    # log.info("passss hereee1:{}".format(len(devices)))
+    # log.debug("passss hereee1:{}".format(len(devices)))
     app.run(host="0.0.0.0", port=80, use_reloader=False)

@@ -22,6 +22,7 @@ services:
             PASSWORD: ${PASSWORD}
         volumes:
             - ./Backend/src:/usr/src/Backend/src
+            - /hdd_ext2/storage:/home/storage
         ports:
             - 5500:80
         depends_on: 
@@ -43,3 +44,14 @@ services:
             # - ./init.sql:/docker-entrypoint-initdb.d/init.sql
         ports: 
             - "5433:5432"
+
+    mosquitto:
+        image: vimagick/mosquitto
+        ports:
+            - "1883:1883"
+            - "8883:8883"
+        volumes:
+            - ./data/mosquitto.conf:/etc/mosquitto/mosquitto.conf
+            - ./data/pwfile:/etc/mosquitto/pwfile
+            - ./data:/var/lib/mosquitto
+        restart: always
