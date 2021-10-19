@@ -8,6 +8,7 @@ from src.migrate.video import Video
 from src.migrate.vehicle_management import VM
 from src.migrate.classification import  Classification
 from src.migrate.recognize import  Recognize
+from src.migrate.track import Track
 from src import db
 from src.service.response import *
 from src.const import *
@@ -17,51 +18,45 @@ from src.service.response import new_alchemy_encoder,row2dict
 def search_by_time(start_time,end_time,log):
     try:
         data = []
-        vehicle = db.session.query(Vehicle).filter(Vehicle.created_at.between(start_time,end_time)).all()
+        track = db.session.query(Track).filter(Track.created_at.between(start_time,end_time)).all()
         db.session.close()
-        vehicle_dict = row2dict(vehicle)
-        for i in vehicle_dict:
+        track_dict = row2dict(track)
+        for i in track_dict:
             response = {
-                'timestamp' : None,
+                'timestamp' : {},
                 'license_plate' : '',
-                'region' : '',
                 'vehicle_type' : '',
                 'meta_data' : {},
                 'device_id' : None,
                 'tracking_res': [],
-                'vehicle_id': '',
                 'license_plate_image' : [],
-                'video_path' : []
+                'video_path' : ""
                 
             }
-            device = db.session.query(Device.id,Device.region).join(VM, VM.device_id == Device.id).where(VM.vehicle_id == i['id']).first()
+            device = db.session.query(Device.id,Device.region).join(Video, Video.device_id == Device.id).where(Video.id == i['video_id']).first()
+            # log.info(device)
             if device:
-                response['device_id'] = device[0][0]
-                response['region'] = device[0][1]
+                response['device_id'] = device[0]
+                response['region'] = device[1]
             else:
                 response['device_id'] = None
                 response['region']  = ''
-            response['timestamp'] = i['created_at']
-            response['vehicle_id'] = i['id']
-            response['license_plate'] = i['license_plate']
-            
-            track_res = db.session.query(Track.id,Video.video_path).join(Video, Video.id == Track.video_id).where(Track.vehicle_id == i['id']).all()
-            tmp = {}
+            response['timestamp'] = {
+                "start_time" : i['start_time'],
+                "end_time" : i['end_time']
+            }
+            video =  db.session.query(Video.video_path).filter(Video.id == i['video_id']).first()
+            response['video_path'] = video[0]
+            track_res = db.session.query(Detection.full_image,Detection.type).where(Detection.tracking_id == i['id']).all()
             for t in track_res:
-                tmp.setdefault(t[1], []).append(t[0])
-            for k,v in tmp.items():
-                response['video_path'].append(k)
-                for j in v:
-                    detect_img =  db.session.query(Detection.full_image).filter(Detection.tracking_id == j).all()
-                    
-                    response['tracking_res'].append({
-                        'tracking_id' : v,
-                        'detect_img' : [r[0] for r in detect_img]
-                    })
-            
-            classify = db.session.query(Classification.meta_data).filter(Classification.vehicle_id == i['id']).first()
+                response['tracking_res'].append({
+                    'detect_type' : t[1],
+                    'detect_img' : t[0]
+                })
+        
+            classify = db.session.query(Classification.meta_data).filter(Classification.tracking_id == i['id']).first()
             response['meta_data'] = classify[0]
-            recognize = db.session.query(Recognize.crop_image).filter(Recognize.vehicle_id == i['id']).all()
+            recognize = db.session.query(Recognize.crop_image).filter(Recognize.tracking_id == i['id']).all()
             response['license_plate_image'] = [r[0] for r in recognize]
             data.append(response)
         return DataReponse(data = data)

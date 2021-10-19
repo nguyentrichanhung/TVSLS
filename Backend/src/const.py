@@ -6,10 +6,13 @@ CODE_EMPTY = 1004
 CODE_UNAUTHORIZE = 1005
 
 
-### Root Folder
+### Folder
 ROOTDIR = '/usr/src/Backend/src/AI'
 STORAGE = '/usr/src/Backend/src/AI/storage'
-ROOT = ''
+# STORAGE = '/home/storage'
+ROOT = '/'
+EXTERNAL_STORAGE = '/home/storage'
+LOG_FOLDER = './src/logs'
 
 
 ### Rule Type
@@ -44,3 +47,9 @@ CHANNELS_HUCOMS = {
 ADMIN_ROLE = 'admin'
 NORMAL_ROLE = 'visitor'
 OFFICER_ROLE = 'offcier'
+
+
+### Hardware Unit
+
+GB = 1024*1024*1024
+MB = 1024*1024

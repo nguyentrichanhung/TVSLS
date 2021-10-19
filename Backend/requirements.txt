@@ -25,8 +25,7 @@ easydict
 psycopg2
 configparser
 psutil
-nvidia-smi
-nvidia-ml-py3
+# pytracemalloc
 # logging -------------------------------------
 tensorboard>=2.4.1
 # wandb

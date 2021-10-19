@@ -3,13 +3,13 @@ import os
 import time
 from datetime import datetime
 from queue import Queue
-import logging
 import numpy as np
 import asyncio
 import websockets
 import json
 from threading import Thread
-from apscheduler.schedulers.background import BackgroundScheduler 
+from apscheduler.schedulers.background import BackgroundScheduler
+import tracemalloc
 
 from src.const import *
 from src.AI.utils.stream import VideoStream
@@ -35,14 +35,16 @@ import src.handler.vehicle_management as mg
 
 # logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
-# ROOTDIR = '/usr/src/Backend/src/AI'
-# STORAGE = '/usr/src/Backend/src/AI/storage'
 q = Queue()
 tracking_data = Queue()
 
 lane_lst = {}
 
 pts = [(593, 709), (9, 555), (503, 269), (695, 240), (794, 308), (595, 705)]
+
+def get_list_of_points():
+    global lane_lst
+    pass
 
 def get_lane_properties(lanes,log):
     global lane_lst

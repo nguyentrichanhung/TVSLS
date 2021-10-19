@@ -34,8 +34,6 @@ class FlaskApp(Flask):
             return super().make_response(make_json(rv))
 
         if isinstance(rv, tuple) and isinstance(rv[0], ApiResponse):
-            print("data rv:",rv[0])
-            print("data rv1:",rv[1])
             rv = (make_json(rv[0]),) + rv[1:]
         return super().make_response(rv)
 
