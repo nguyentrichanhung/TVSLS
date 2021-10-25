@@ -26,10 +26,16 @@ from src.migrate.vehicle_management import VM
 from src.migrate.classification import Classification
 
 
+from src.AI.utils.check_direction import *
+from src.AI.utils.violate import *
+
 import src.handler.track as t
 import  src.handler.vehicle as v
 import src.handler.classification as c
 import src.handler.vehicle_management as mg
+
+
+
 
 
 
@@ -39,10 +45,11 @@ q = Queue()
 tracking_data = Queue()
 
 lane_lst = {}
-
+memory = {}
+tracking = {}
 pts = [(593, 709), (9, 555), (503, 269), (695, 240), (794, 308), (595, 705)]
 
-def get_list_of_points():
+def get_list_of_points(image):
     global lane_lst
     pass
 
@@ -55,14 +62,15 @@ def gen_frame(device,model,stream_config,video_config,log):
     fps = video_config['fps']
     dbe = video_config['dbe']
     kcw = KeyClipWriter(bufSize=fps*dbe,resolution=(video_config['resolution']['width'],video_config['resolution']['height']))
-    mlp = LisencePlate(weights='./src/AI/models/lpr-spcs.pt')
+    mlp = LisencePlate(weights='./src/AI/models/lpr-spcs.pt',imgsz=416)
     vr = Car_Classifier(num_cls=19, model_path='./src/AI/models/epoch_39.pth', device='cuda')
     freq = cv2.getTickFrequency()
     frame_rate_calc  = 25
     deepsort = model.deepsort
     meta_data = device['meta_data']
-    stream_url = "rtsp://{}:{}@{}:{}/{}".format(meta_data['user'],
-                    meta_data['password'],meta_data['ip'],meta_data['rtsp_port'],stream_config['channel'])
+    # stream_url = "rtsp://{}:{}@{}:{}/{}".format(meta_data['user'],
+    #                 meta_data['password'],meta_data['ip'],meta_data['rtsp_port'],stream_config['channel'])
+    stream_url = "rtsp://222.235.247.91:554/profile2/media.smp"
     # videostream  = VideoStream(device.stream_url,resolution=(1280,720),framerate=60)
     # videostream.start()
     # time.sleep(1)
@@ -207,6 +215,7 @@ def setup_cameras(log):
             b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 def process_data(device,deepsort,kcw,mlp,vr,log):
+    global memory,lane_lst
     while True:
         timeout_start = time.time()
         response = []
@@ -220,8 +229,30 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 for j, (output, conf) in enumerate(zip(track_output, tracking['confs'])):
                     id = output[4]
                     cls = output[5]
-
+                    bbox_left = output[0]
+                    bbox_top = output[1]
+                    centerx = bbox_left + (output[2] - output[0])//2
+                    centery = bbox_top + (output[2] - output[0])//2
+                    midpoint = (centerx,centery)
+                    if id not in memory:
+                        new_track = VehiclePos()
+                        new_track.add_position(midpoint)
+                        memory[id] = new_track
+                    memory[id].add_position(midpoint)
+                    previous_midpoint = memory[id].positions[0]
                     c = int(cls)  # integer class
+                    direction = ''
+                    if midpoint[1] < previous_midpoint[1]:
+                            direction = 'Up'
+                    elif midpoint[1] >= previous_midpoint[1]:
+                            direction = 'Down'
+                    vehicle_pos = {
+                        "direction" : direction,
+                        "point" : midpoint
+                    }
+                    memory[id].is_wrong_direction = wrong_direction(vehicle_pos,lane_lst,log)
+                    for i in memory.values():
+                        i.frames_since_seen += 1
                     track_result = {
                         "video_id": kcw.video_id,
                         "tracking_number": int(id.item()),
@@ -252,12 +283,28 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 bbox_top = output[1]
                 bbox_w = output[2] - output[0]
                 bbox_h = output[3] - output[1]
-                # crop_time = datetime.now().strftime("%m:%d:%Y_%H_%M_%S.%f")
-                # crop_image = data['img'][int(output[1]):int(output[3]), int(output[0]):int(output[2])]
-                # crop_image = cv2.resize(crop_image, (416, 416), interpolation=cv2.INTER_CUBIC)
-                # licenseplate = mlp.recog_lpr(data['img'])
-                # crop_path = os.path.join(STORAGE,'crop_image',str(count) + crop_time+'.jpg')
-                # cv2.imwrite(crop_path,crop_image)
+                centerx = bbox_left + (output[2] - output[0])//2
+                centery = bbox_top + (output[2] - output[0])//2
+                midpoint = (centerx,centery)
+                if id not in memory:
+                    new_track = VehiclePos()
+                    new_track.add_position(midpoint)
+                    memory[id] = new_track
+                memory[id].add_position(midpoint)
+                previous_midpoint = memory[id].positions[0]
+                c = int(cls)  # integer class
+                direction = ''
+                if midpoint[1] < previous_midpoint[1]:
+                        direction = 'Up'
+                elif midpoint[1] >= previous_midpoint[1]:
+                        direction = 'Down'
+                vehicle_pos = {
+                    "direction" : direction,
+                    "point" : midpoint
+                }
+                memory[id].is_wrong_direction = wrong_direction(vehicle_pos,lane_lst,log)
+                for i in memory.values():
+                    i.frames_since_seen += 1
 
                 plot_one_box(bboxes, data['img'], label=name, color=(
                     255, 0, 0), line_thickness=2)
@@ -292,6 +339,7 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                     'event_time' : data['event_time'].strftime("%m:%d:%Y_%H_%M_%S.%f")
                 })
             cv2.imwrite(full_path,data['img'])
+            memory = {i:memory[i] for i in memory if not memory[i].frames_since_seen>= MAX_UNSEND_FRAMES}
             log.info("Send data:{}".format(response))
             try:
                 if len(response) > 0:
@@ -335,7 +383,7 @@ def recognize_lp(frame,mlp,count,tracking_id,log):
 
 
 async def handle_message(data,log):
-    uri = "ws://192.168.0.31:8000"
+    uri = "ws://192.168.0.179:8000"
     async with websockets.connect(uri) as websocket:
         for d in data :
             await websocket.send(json.dumps(d))

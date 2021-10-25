@@ -60,8 +60,8 @@ from src.migrate.video import Video
 from src.migrate.config import Config
 from src.migrate.lane_properties import LaneProperty
 from src.migrate.users import User
-# from src.migrate.roles import Role
-# from src.migrate.user_roles import UserRole
+from src.migrate.violate import Violate
+from src.migrate.violate_manage import Violate_Manager
 from src.migrate.device_managers import DeviceManager
 migrate = Migrate(app, db)
 

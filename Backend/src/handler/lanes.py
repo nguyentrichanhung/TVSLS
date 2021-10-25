@@ -58,7 +58,7 @@ def updates(data,device_id,log):
             lane.points = v['points']
             lane.updated_at = datetime.datetime.now()
             db.session.commit()
-        return DataReponse(message= 'Update successfully!',code = CODE_DONE)
+        return DataReponse(message= 'Update successfully!',data=lane,code = CODE_DONE)
     except  SQLAlchemyError as e:
         db.session.close()
         log.error(e)
