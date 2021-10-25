@@ -53,3 +53,7 @@ OFFICER_ROLE = 'offcier'
 
 GB = 1024*1024*1024
 MB = 1024*1024
+
+
+### Others
+MAX_UNSEND_FRAMES = 10

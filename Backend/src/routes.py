@@ -112,7 +112,7 @@ def start(user_info,device_id):
         video_config = config.data['config_data']['videos']
         if len(video_config.keys()) == 0:
             return ApiResponse(message='Need to update the video config',success=False), status.HTTP_400_BAD_REQUEST
-        model = LisencePlate()
+        model = LisencePlate(imgsz=480)
         thread = Thread(target=gen_frame,args=(device.data,model,stream_config,video_config,log))
         thread.setDaemon(True)
         thread.start()
@@ -299,6 +299,7 @@ def update_lanes(user_info):
         res = l.updates(lanes,device_id,log)
         if res != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
+        get_lane_properties(res.data,log)
         log.info(configure_log("Changed",user_info['role'],"Lanes setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_200_OK
 

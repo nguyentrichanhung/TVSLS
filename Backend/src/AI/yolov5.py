@@ -79,7 +79,7 @@ class LisencePlate:
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
         pred = self.model(img, augment=True)[0]
-        pred = non_max_suppression(pred, 0.3, 0.55, classes=[0], agnostic=True)
+        pred = non_max_suppression(pred, 0.45, 0.5, classes=[0], agnostic=True)
         
         for i, det in enumerate(pred):
             if len(det):
