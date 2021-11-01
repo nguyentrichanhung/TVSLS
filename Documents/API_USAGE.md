@@ -14,6 +14,7 @@
     * [4. COMMON CONFIGS](#4-common-configs)
     * [5. HEALTH CHECK MONITOR](#5-health-check-monitor)
     * [6. STREAMING API](#6-streaming-api)
+    * [7. SEARCH EVENT](#6-search-event)
 ----
 ## I General API Information
 
@@ -666,3 +667,166 @@ GET: /video_feed/<video_name>
 ```
 ```video_name``` : video1 , video2, video3, video4, video5, video6, video7, video8, video9 are avaiable
 > Note: we can not access live stream and open video as same time since the current data flow not allow to work with multiple process detection
+
+---
+### 7. SEARCH EVENT
+
+---
+#### SEARCH EVENT BY FILTER DATA
+- Create POST request to get all tracking information by filter data
+  
+```
+POST /search
+```
+
+```
+Request Header
+Authorization: None
+Type: application/json
+```
+
+```json
+Request: {
+  "start_time" : "str", // the start time want to search
+  "end_time": "str", // the end time want to search
+  "type": "array"  // the vehicles type
+}
+
+Response:{
+  "data" : {
+    "tracking_id" : {
+                "timestamp": {
+                    "start_time" : "str",
+                    "end_time" : "str"
+                },
+                "device_id":"str",
+                "region": "str",
+                "video_path": "str",
+                "meta_data": "json",
+                "tracking_res": {
+                    "detect_type" : "str",
+                    "detect_img" : "str"
+                },
+                "license_plate_image" : "str"
+            }
+  },
+  "message": "str",
+  "success": "boolean"
+}
+```
+- Example
+```json
+  {"data": {
+    "0a1261bb-0cb9-4024-a3ab-aa90424ada80": {
+      "device_id": "926beb51-0b27-4f5b-82b8-baa4fb61e027",
+      "license_plate_image": "/usr/src/Backend/src/AI/storage/crop_image/210:27:2021_16_18_59.573243.jpg",
+      "meta_data": {
+        "color": "Blue",
+        "direction": "Front",
+        "type": "saloonCar"
+      },
+      "region": "kr",
+      "timestamp": {
+        "end_time": "2021-10-27 16:19:01.072195",
+        "start_time": "2021-10-27 16:18:59.181965"
+      },
+      "tracking_res": {
+        "detect_img": "car",
+        "detect_type": "/usr/src/Backend/src/AI/storage/full_image/10:27:2021_16_18_59.497115.jpg"
+      },
+      "video_path": "/usr/src/Backend/src/AI/storage/video/20211027-154738.webm"
+    },
+    "0fa65d82-e3a0-4e7d-be0b-b3277bc63884": {
+      "device_id": "926beb51-0b27-4f5b-82b8-baa4fb61e027",
+      "license_plate_image": "/usr/src/Backend/src/AI/storage/crop_image/210:27:2021_15_08_00.774248.jpg",
+      "meta_data": {
+        "color": "Blue",
+        "direction": "Front",
+        "type": "saloonCar"
+      },
+      "region": "kr",
+      "timestamp": {
+        "end_time": "2021-10-27 15:08:00.898354",
+        "start_time": "2021-10-27 15:07:58.803157"
+      },
+      "tracking_res": {
+        "detect_img": "car",
+        "detect_type": "/usr/src/Backend/src/AI/storage/full_image/10:27:2021_15_08_00.710389.jpg"
+      },
+      "video_path": "/usr/src/Backend/src/AI/storage/video/20211027-150527.webm"
+    }
+  },
+  "message" : "...",
+  "success" : true
+}
+```
+
+---
+#### SEARCH FULL IMAGE EVENTS BY TRACKING ID
+- Create POST request to get all full image by tracking id
+  
+```
+POST /search/full/<tracking_id>
+```
+
+```
+Request Header
+Authorization: None
+Type: application/json
+```
+
+```json
+Request: {
+  "start" : "int", // the number of image want to take in start area
+  "middle": "int", // the number of image want to take in middle area
+  "end": "int"  //the number of image want to take in end area
+}
+
+Response:{
+  "data" : {
+    "start" : {
+                "detection_id" : {
+                  "image_path" : "str"
+                }
+            },
+    "middle" : {
+                "detection_id" : {
+                  "image_path" : "str"
+                }
+            },
+    "end" : {
+              "detection_id" : {
+                "image_path" : "str"
+              }
+            }
+  },
+  "message": "str",
+  "success": "boolean"
+}
+```
+---
+#### SEARCH CROP IMAGE EVENTS BY TRACKING ID
+- Create POST request to get all full image by tracking id
+  
+```
+POST /search/crop/<detection_id>
+```
+
+```
+Request Header
+Authorization: None
+Type: application/json
+```
+
+```json
+Request: {
+  "start" : "int", // the number of image want to take in start area
+  "middle": "int", // the number of image want to take in middle area
+  "end": "int"  //the number of image want to take in end area
+}
+
+Response:{
+  "data" : "array", // list of crop image
+  "message": "str",
+  "success": "boolean"
+}

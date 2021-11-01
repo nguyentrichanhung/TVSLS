@@ -31,7 +31,7 @@ services:
             - db
 
     db:
-        image: postgres
+        image: postgres:13.4-alpine
         container_name: postgres_vls
         restart: always
         environment: 

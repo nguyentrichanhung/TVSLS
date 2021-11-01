@@ -10,19 +10,19 @@ class Classification(db.Model):
     __tablename__ = 'Classification'
 
     id = db.Column(db.String(50), unique = True,primary_key = True,nullable = False)
-    tracking_id = db.Column(db.String(50),db.ForeignKey('Tracks.id',ondelete='cascade'),nullable = False)
+    detect_id = db.Column(db.String(50),db.ForeignKey('Detection.id',ondelete='cascade'),nullable = False)
     meta_data = db.Column(db.JSON,nullable = False)
     created_at = db.Column(db.DateTime(),default=datetime.datetime.now())
     updated_at = db.Column(db.DateTime(), default=datetime.datetime.now())
     deleted_at = db.Column(db.DateTime(), default=None,nullable = True)
 
-    def __init__(self,tracking_id,meta_data):
+    def __init__(self,detect_id,meta_data):
         self.id = str(uuid.uuid4())
-        self.tracking_id = tracking_id
+        self.detect_id = detect_id
         self.meta_data = meta_data  
 
     def __repr__(self):
-        return f"{self.tracking_id}:{self.meta_data}"
+        return f"{self.detect_id}:{self.meta_data}"
 
     def add(self,log):
         try:
@@ -34,10 +34,10 @@ class Classification(db.Model):
             return None
         return self
 
-    def update(self,classify_id,tracking_id,meta_data,log):
+    def update(self,classify_id,detect_id,meta_data,log):
         try:
             classify = Classification.query.filter_by(Classification.id ==classify_id).first()
-            classify.tracking_id = tracking_id
+            classify.detect_id = detect_id
             classify.meta_data = meta_data
             classify.updated_at = datetime.datetime.now()
             db.session.commit()

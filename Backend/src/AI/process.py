@@ -306,8 +306,7 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 for i in memory.values():
                     i.frames_since_seen += 1
 
-                plot_one_box(bboxes, data['img'], label=name, color=(
-                    255, 0, 0), line_thickness=2)
+
                 count += 1
                 track_result = {
                     "video_id": kcw.video_id,
@@ -316,8 +315,6 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                     "end_time": datetime.now()
                 }
                 tracking = t.create_or_update(track_result, log)
-                crop_image = recognize_lp(data['img'],mlp,count, tracking.id,log)
-                m = recognize_vehicle(data['img'],vr,tracking.id,log)
                 boundingbox = {
                     'x' : int(bbox_left),
                     'y' : int(bbox_top),
@@ -326,6 +323,12 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 }
                 detect = Detection(tracking.id,name,full_path,boundingbox,data['event_time'])
                 detect.add(log)
+                vehicle_coord = data['img'][int(output[1]):int(output[3]),int(output[0]):int(output[2])]
+                vehicle_coord = cv2.resize(vehicle_coord, (416, 416), interpolation=cv2.INTER_CUBIC)
+                crop_image = recognize_lp(vehicle_coord,mlp,count, detect.id,log)
+                m = recognize_vehicle(data['img'],vr,detect.id,log)
+                plot_one_box(bboxes, data['img'], label=name, color=(
+                    255, 0, 0), line_thickness=2)
                 response.append({
                     'data_key' : 'GB_20210001_LPR',
                     'device_id' : device['id'],
@@ -354,8 +357,8 @@ def process_data(device,deepsort,kcw,mlp,vr,log):
                 continue
 
 
-def recognize_vehicle(frame,vr,tracking_id,log):
-    data = c.get_classify_by_track_id(tracking_id,log)
+def recognize_vehicle(frame,vr,detect_id,log):
+    data = c.get_classify_by_track_id(detect_id,log)
     if data.code is not CODE_EMPTY:
         return data.data['meta_data']
     img = vr.pre_process(frame)
@@ -365,18 +368,18 @@ def recognize_vehicle(frame,vr,tracking_id,log):
         'direction' : direction,
         'type' : type
     }
-    classify = Classification(tracking_id,m)
+    classify = Classification(detect_id,m)
     classify.add(log)
     return m
 
-def recognize_lp(frame,mlp,count,tracking_id,log):
+def recognize_lp(frame,mlp,count,detect_id,log):
     crop_time = datetime.now().strftime("%m:%d:%Y_%H_%M_%S.%f")
     # crop_image = cv2.resize(frame, (416, 416), interpolation=cv2.INTER_CUBIC)
     crop_image = mlp.lp_image(frame)
     if crop_image is not None:
         crop_path = os.path.join(STORAGE,'crop_image',str(count) + crop_time+'.jpg')
         cv2.imwrite(crop_path,crop_image)
-        recognize = Recognize(tracking_id,crop_path)
+        recognize = Recognize(detect_id,crop_path)
         recognize.add(log)
         return crop_path
     return None
