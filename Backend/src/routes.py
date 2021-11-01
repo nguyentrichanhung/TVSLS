@@ -40,7 +40,7 @@ from src.AI.process import gen_frame, gen_vid, setup_cameras,get_lane_properties
 from src.AI.yolov5 import  LisencePlate
 from src.migrate.device import Device
 from src.handler.search import *
-from src.handler.validate import validate_id, validate_vehicle_id
+from src.handler.validate import validate_id, validate_vehicle_id,validate_track_id
 
 from src.handler.video import *
 from src.handler.track import *
@@ -52,6 +52,7 @@ import src.handler.lanes as l
 import src.handler.config as c
 import src.handler.device as d
 import src.handler.users as u
+import src.handler.track as t
 
 from src.util.valid import *
 from src.util.auth import *
@@ -240,7 +241,7 @@ def update_config(user_info):
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = c.updates(config_id,device_id,data_video,data_stream,log)
-        if res != CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
         log.info(configure_log("Changed",user_info['role'],"Common setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_200_OK        
@@ -266,7 +267,7 @@ def create_lanes(user_info):
         if device.code != CODE_DONE:
             return ApiResponse(message=device.message), status.HTTP_500_INTERNAL_SERVER_ERROR
         res = l.creates(lanes,device_id,log)
-        if res != CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
         log.info(configure_log("Created",user_info['role'],"Lanes setup",ip_add))
         return ApiResponse(message=res.message,success=True), status.HTTP_201_CREATED
@@ -297,7 +298,7 @@ def update_lanes(user_info):
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
         res = l.updates(lanes,device_id,log)
-        if res != CODE_DONE:
+        if res.code != CODE_DONE:
             return ApiResponse(message=res.message,success=False), status.HTTP_400_BAD_REQUEST
         get_lane_properties(res.data,log)
         log.info(configure_log("Changed",user_info['role'],"Lanes setup",ip_add))
@@ -462,21 +463,72 @@ def search_in_range():
     if request.method == "POST":
         json_reg = request.get_json(force=True,silent=True)
         if not json_reg:
-            log.debug("Access here")
             return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
         start_time = json_reg['start_time']
         end_time = json_reg['end_time']
+        vehicle_type = json_reg['type']
         log.debug("Start time: {} - End time: {}".format(start_time,end_time))
-        valid = ValidateData(start_time=start_time,end_time=end_time)
+        valid = ValidateData(start_time=start_time,end_time=end_time,vehicle_type=vehicle_type)
         ok, msg = valid.validate()
         if not ok:
             return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
-        res = search_by_time(start_time,end_time,log)
+        res = search_by_time(start_time,end_time,vehicle_type,log)
         if res.code != CODE_DONE:
             return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
         if res.data is None :
             return ApiResponse(message=res.message,data= None), status.HTTP_404_NOT_FOUND
         return ApiResponse(message=res.message,data=res.data,success= True), status.HTTP_200_OK
+
+@app.route('/search/full/<tracking_id>', methods=["POST"])
+def get_full_images(tracking_id):
+    log.info('Starting Process....')
+    if request.method == "POST":
+        if tracking_id is None:
+            return ApiResponse(message="Invalid tracking id"), status.HTTP_400_BAD_REQUEST
+        valid = validate_track_id(tracking_id,log)
+        if valid.code == CODE_EMPTY:
+            return ApiResponse(message=valid.message,success=False), status.HTTP_400_BAD_REQUEST
+        if valid.code != CODE_DONE:
+            return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
+        json_reg = request.get_json(force=True,silent=True)
+        if not json_reg:
+            return ApiResponse(message="Invalid json type"), status.HTTP_400_BAD_REQUEST
+        start_area = json_reg['start']
+        middle_area  = json_reg['middle']
+        end_area = json_reg['end']
+        valid = ValidateSelectImage(start=start_area,middle=middle_area,end=end_area)
+        ok, msg = valid.validate()
+        if not ok:
+            return ApiResponse(message=msg), status.HTTP_400_BAD_REQUEST
+        res = search_full_image(tracking_id,start_area,middle_area,end_area,log)
+        if res.code != CODE_DONE:
+            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        if res.data is None :
+            return ApiResponse(message="Cannot found full image",data= None), status.HTTP_404_NOT_FOUND
+        return ApiResponse(message=res.message,data=res.data,success= True), status.HTTP_200_OK
+
+@app.route('/search/crop/<tracking_id>', methods=["GET"])
+def get_crop_images(tracking_id):
+    log.debug('Starting Process....')
+    if request.method == "GET":
+        if tracking_id is None:
+            return ApiResponse(message="Invalid tracking id"), status.HTTP_400_BAD_REQUEST
+        valid = validate_track_id(tracking_id,log)
+        if valid.code == CODE_EMPTY:
+            return ApiResponse(message=valid.message,success=False), status.HTTP_400_BAD_REQUEST
+        if valid.code != CODE_DONE:
+            return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
+        res = search_crop_image(tracking_id,log)
+        if res.code != CODE_DONE:
+            return ApiResponse(message=res.message,data = None), status.HTTP_500_INTERNAL_SERVER_ERROR
+        if res.data is None :
+            return ApiResponse(message="Cannot found crop image",data= None), status.HTTP_404_NOT_FOUND
+        return ApiResponse(message=res.message,data=res.data,success= True), status.HTTP_200_OK
+
+# @app.route('/search/crop/<tracking_id>', methods=["GET"])
+# def get_crop_images(tracking_id):
+#     pass
+
 
 @app.route('/device/<device_id>/video',methods=["GET"])
 def get_video_list(device_id):
@@ -486,7 +538,7 @@ def get_video_list(device_id):
             return ApiResponse(message="Invalid device id"), status.HTTP_400_BAD_REQUEST
         valid = validate_id(device_id,log)
         if valid.code != CODE_DONE:
-            return  ApiResponse(message=valid.message), status.HTTP_500_INTERNAL_SERVER_ERROR
+            return  ApiResponse(message=valid.message), status.HTTP_400_BAD_REQUEST
         if valid.data is None:
             return ApiResponse(message='The device id not valid'), status.HTTP_400_BAD_REQUEST         
         res = get_list_video_by_device_id(device_id,log)

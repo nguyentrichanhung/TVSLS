@@ -11,7 +11,6 @@ from src.service.response import *
 from src.const import *
 from src.service.response import new_alchemy_encoder,row2dict
 
-
 def create_or_update(data,log):
     try:
         tracking = db.session.query(Track).filter(and_(Track.video_id == data['video_id'],Track.tracking_number == data['tracking_number'])).first()

@@ -4,6 +4,18 @@ from dataclasses_json import dataclass_json
 from datetime import datetime
 import json
 
+@dataclass_json
+@dataclass
+class ValidateSelectImage:
+    start: int
+    middle: int
+    end: int
+    def validate(self) -> [bool,str]:
+        if not self.start or not self.middle or not self.end:
+            return False, 'Invalid format type'
+        if self.start + self.middle + self.end > 6:
+            return False, 'Number of select image cannot over 6'
+        return True, ''
 
 @dataclass_json
 @dataclass
@@ -51,8 +63,9 @@ class ValidateDevce:
 class ValidateData:
     start_time: datetime
     end_time: datetime
+    vehicle_type : list
     def validate(self) -> [bool,str]:
-        if not self.start_time or not self.end_time:
+        if not self.start_time or not self.end_time or not self.vehicle_type:
             return False, 'Invalid data'
         return True, ''
 

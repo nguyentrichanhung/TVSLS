@@ -5,7 +5,7 @@ then
 	flask db init
     flask db migrate
     flask db upgrade
-    python src/init_user.py
+    python src/init_insert.py
 fi
 
 
